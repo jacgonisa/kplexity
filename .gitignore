@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# kplex outputs
+*.kplex.csv
+*.theoretical.csv
+*.fit.json
+
+# genomic data — never commit
+*.fa
+*.fa.gz
+*.fasta
+*.fastq
+*.fastq.gz
+*.ktab
+*.hist
+*.prof
+
+# FASTK compiled binaries (submodule source is tracked, builds are not)
+FASTK/FastK
+FASTK/Kplex
+FASTK/Fast*
+FASTK/Hist*
+FASTK/*ex
+FASTK/*.o
+FASTK/HTSLIB/
+FASTK/LIBDEFLATE/
+
+# misc
+.DS_Store
+*.tmp

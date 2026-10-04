@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kplex"
+version = "0.1.0"
+description = "k-plexity: fraction of unique k-mers vs k — a fast genome repeat-landscape QC tool"
+readme = "kplex/README.md"
+requires-python = ">=3.9"
+authors = [{name = "Jacob Gonzalez"}]
+dependencies = ["numpy", "pandas", "scipy", "matplotlib"]
+
+[project.urls]
+Homepage = "https://github.com/jacgonisa/kplexity"
+
+[project.scripts]
+kplex = "kplex.cli:main"
+
+[tool.setuptools]
+packages = ["kplex"]
