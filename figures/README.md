@@ -10,6 +10,8 @@ Elegant, publication-ready figures for the k-plexity application note (PNG + SVG
 | `fig_D_satellites` | **Use case 3 — diagnostics**: k-plexity curves for human satellite families (α, HSat1/2/3, β, γ); asymptote vs total satellite across 24 chromosomes (r=−0.97, R²=0.94) |
 | `fig_S4_hsat_vs_alpha` | Supp: asymptote vs HSat (R²=0.97) vs vs alpha-satellite (R²=0.01) — the asymptote tracks HSat, not alpha |
 | `chr19_alu_kplexity` | Supp: chr19 Alu-only k-plexity reproduces the k0_2 second sigmoid (k50≈27≈chr19 k0_2; k50 vs divergence r=−0.88) |
+| `chr18_alu_kplexity` | Supp: the same for chr18 (6.5 Mb / 24.6k Alus, older: k50≈25, r=−0.83) — parallel to chr19 |
+| `fig_alpha_beta_map` | Supp: map of alpha- vs beta-satellite across the 24 CHM13 chromosomes (ideogram + per-chromosome content) |
 | `merqury_vs_kplexity` | Supp (use case 1): k-plexity asymptote vs Merqury QV, AUC vs completeness, on Arabidopsis assemblies — read-free quality proxy |
 | `fig2_frontier` | Supp (sketching): accuracy–cost frontier — non-uniform k-sampling matches full-resolution fit at far fewer k |
 | `fig7_violins` | Supp (sketching): per-genome drift distributions by schedule/budget (adaptive's tail; transition-prior tightest) |
