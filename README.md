@@ -6,7 +6,7 @@ For each *k*, `kplex` counts the distinct *k*-mers in the assembly (`U`) and the
 *k*-mers (`T`); the curve is `U/T` over *k* = 5–151. It uses the assembly only — no reads, no
 annotation — and is summarised by a double-sigmoid fit (six parameters).
 
-![how the k-plexity curve is computed](assets/kplexity_diagram.png)
+![k-plexity — how it works](animation/kplex_story.gif)
 
 Bacteria are well described by a single sigmoid; eukaryotes, with their repeat content, need the
 second component — the double sigmoid:
@@ -70,7 +70,6 @@ Two sigmoids add up to the curve. The six parameters are just its shape:
 | **asymptote** = `L1 + L2` | the high-*k* plateau (overall uniqueness) |
 
 `kplex fit` writes these to a `.fit.json` and reports `R²`, `RMSE` and `AICc`.
-A 40-second explainer is in [`animation/`](animation/kplex_story.gif).
 
 ---
 
