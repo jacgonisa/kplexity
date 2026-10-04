@@ -1,16 +1,17 @@
 # k-plexity
 
-**How repetitive is a genome? Slide a window of length *k* along it and ask: what fraction
-of *k*-mers are unique? Plot that fraction across *k* — that's the k-plexity curve.** 🧬
+**k-plexity is the fraction of unique *k*-mers in a genome assembly, as a function of *k*.**
 
-One curve per genome, straight from the assembly — no reads, no annotation, seconds to compute.
+For each *k*, `kplex` counts the distinct *k*-mers in the assembly (`U`) and the total number of
+*k*-mers (`T`); the curve is `U/T` over *k* = 5–151. It uses the assembly only — no reads, no
+annotation — and is summarised by a double-sigmoid fit (six parameters).
 
-![k-plexity](assets/kplexity_hero.png)
+![how the k-plexity curve is computed](assets/kplexity_diagram.png)
 
-Every curve is summarised by a simple **double sigmoid** — just six numbers
-(`L1, L2, s1, s2, k0_1, k0_2`) that describe its shape.
+Bacteria are well described by a single sigmoid; eukaryotes, with their repeat content, need the
+second component — the double sigmoid:
 
-▶ *New here?* [Watch the 40-second explainer.](animation/kplex_story.gif)
+![example curves: bacterium, plant, invertebrate, vertebrate](assets/kplexity_examples.png)
 
 ---
 
@@ -53,7 +54,7 @@ Handy flags: `-k 5:151:1` (k range), `-T` (threads), `--chromosomes-only`
 
 ---
 
-## The curve, in one equation
+## The double-sigmoid fit
 
 ```
 y(k) = L1 / (1 + e^(−s1·(k − k0_1)))  +  L2 / (1 + e^(−s2·(k − k0_2)))
@@ -69,28 +70,17 @@ Two sigmoids add up to the curve. The six parameters are just its shape:
 | **asymptote** = `L1 + L2` | the high-*k* plateau (overall uniqueness) |
 
 `kplex fit` writes these to a `.fit.json` and reports `R²`, `RMSE` and `AICc`.
-*(The tool stays agnostic about what the shape means biologically.)*
+A 40-second explainer is in [`animation/`](animation/kplex_story.gif).
 
 ---
 
-## Every genome has its own curve
+## Acknowledgements
 
-![gallery](assets/kplexity_gallery.png)
-
----
-
-## How `fraction_unique` is computed
-
-For each *k*, every length-*k* window along the genome is one *k*-mer:
-
-```
-fraction_unique  =  U / T
-   U = number of distinct k-mers
-   T = total k-mers  (one per position, ≈ genome length)
-```
-
-A non-repetitive stretch has `U = T` (every *k*-mer different → 1); repeats make the same
-*k*-mers recur, so `U < T` and the fraction drops. Sweep *k* from 5 → 151 and you trace the curve.
+- The original idea for k-plexity is **Katie Jenike's**.
+- The core *k*-mer counting is done by **[FASTK](https://github.com/thegenemyers/FASTK)**
+  (Gene Myers); `kplex` wraps `FASTK`/`Kplex` (bundled here as a submodule).
+- **Claude** (Anthropic) contributed to this repository — but **only** to the benchmarking and to
+  the `kplex` command-line interface. The core counting code comes from **FASTK**, not from Claude.
 
 ---
 
@@ -98,7 +88,7 @@ A non-repetitive stretch has `U = T` (every *k*-mer different → 1); repeats ma
 
 ```
 kplex/        the CLI (run / fit / plot)
-FASTK/        the k-mer counter  (git submodule → jacgonisa/FASTK)
+FASTK/        the k-mer counter  (git submodule → jacgonisa/FASTK; wraps FASTK by Gene Myers)
 assets/       figures
 animation/    the explainer
 ```
