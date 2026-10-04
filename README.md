@@ -78,8 +78,8 @@ Two sigmoids add up to the curve. The six parameters are just its shape:
 - The original idea for k-plexity is **Katie Jenike's**.
 - The core *k*-mer counting is done by **[FASTK](https://github.com/thegenemyers/FASTK)**
   (Gene Myers); `kplex` wraps `FASTK`/`Kplex` (bundled here as a submodule).
-- **Claude** (Anthropic) contributed to this repository — but **only** to the benchmarking and to
-  the `kplex` command-line interface. The core counting code comes from **FASTK**, not from Claude.
+- **Claude** was used in this project (mainly in the k-plexity animation, benchmarking automatization and in
+  the `kplex` command-line interface). The core counting code comes from **FASTK**.
 
 ---
 
