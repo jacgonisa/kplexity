@@ -103,18 +103,24 @@ def filter_chromosomes(fasta: Path, out_fasta: Path, regex: str) -> dict:
     return stats
 
 
+_ACGT_RUN = re.compile(rb"[ACGTacgt]+")
+
+
 def fasta_lengths(fasta: Path) -> list[int]:
-    lengths, cur = [], 0
-    with open(fasta, "rt", errors="ignore") as f:
+    """Lengths of maximal ACGT runs. FastK breaks sequences at every non-ACGT character, so the
+    theoretical T(k) is summed over these runs (N gaps contribute no k-mers)."""
+    lengths: list[int] = []
+    seq: list[bytes] = []
+    with open(fasta, "rb") as f:
         for line in f:
-            if line.startswith(">"):
-                if cur:
-                    lengths.append(cur)
-                cur = 0
+            if line.startswith(b">"):
+                if seq:
+                    lengths.extend(len(m) for m in _ACGT_RUN.findall(b"".join(seq)))
+                seq = []
             else:
-                cur += len(line.strip())
-    if cur:
-        lengths.append(cur)
+                seq.append(line.rstrip(b"\r\n"))
+    if seq:
+        lengths.extend(len(m) for m in _ACGT_RUN.findall(b"".join(seq)))
     return lengths
 
 
@@ -126,8 +132,11 @@ def add_theoretical(curve_csv: Path, out_csv: Path, t_theory: dict[int, int]) ->
     df = pd.read_csv(curve_csv)
     df["k"] = pd.to_numeric(df["k"], errors="coerce").astype("Int64")
     df["total_kmers_theoretical"] = df["k"].map(t_theory)
-    df["total_kmers_observed"] = pd.to_numeric(df["total_kmers"], errors="coerce")
-    df["fraction_unique_theoretical"] = df["unique_kmers"] / df["total_kmers_theoretical"]
+    # Kplex writes the FastK histogram sum (saturates at count 32767) as total_kmers_observed
+    obs_col = "total_kmers_observed" if "total_kmers_observed" in df.columns else "total_kmers"
+    df["total_kmers_observed"] = pd.to_numeric(df[obs_col], errors="coerce")
+    unique = pd.to_numeric(df["unique_kmers"], errors="coerce")   # ERROR_* rows -> NaN
+    df["fraction_unique_theoretical"] = unique / df["total_kmers_theoretical"]
     df["truncation_fraction"] = 1.0 - (df["total_kmers_observed"] / df["total_kmers_theoretical"])
     df["truncation_delta"] = df["total_kmers_theoretical"] - df["total_kmers_observed"]
     df.to_csv(out_csv, index=False)

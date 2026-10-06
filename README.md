@@ -27,7 +27,7 @@ That gives you the **`kplex`** command. The *k*-mer counting is done by a small 
 binary — build the bundled one once and point `kplex` at it:
 
 ```bash
-make -C FASTK Kplex
+make -C FASTK          # builds FastK, Histex and Kplex (Kplex calls the other two)
 export KPLEX_BIN=$PWD/FASTK/Kplex
 #   (or use KMC instead:  conda install -c bioconda kmc  →  --tool kmc)
 ```
