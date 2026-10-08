@@ -48,8 +48,23 @@ def _aicc(residuals, n_params, n):
     return aic + (2 * p * (p + 1)) / (n - p - 1)
 
 
+def spacing_weights(x: np.ndarray) -> np.ndarray:
+    """k-span each point stands for (all 1 for a step-1 curve). For an unevenly sampled curve (a k list such as
+    a size-anchored sketch), weighting by these makes the fit target the same objective as the full curve."""
+    x = np.asarray(x, float)
+    e = np.concatenate([[x[0]], (x[1:] + x[:-1]) / 2, [x[-1]]])
+    w = np.diff(e)
+    w[0] += 0.5
+    w[-1] += 0.5
+    return w
+
+
 def fit_double_sigmoid(x: np.ndarray, y: np.ndarray, n_starts: int = 12) -> dict:
-    """Multi-start bounded fit. Enforces L1+L2<=1 region and k0_1<k0_2 (post-hoc)."""
+    """Multi-start bounded fit. Enforces L1+L2<=1 region and k0_1<k0_2 (post-hoc).
+    Unevenly spaced k are weighted by spacing_weights()."""
+    uneven = len(x) > 2 and np.ptp(np.diff(x)) > 0
+    w = spacing_weights(x) if uneven else np.ones(len(x))
+    sigma = 1.0 / np.sqrt(w) if uneven else None
     xmin, xmax = float(x.min()), float(x.max())
     # bounds: [L1, s1, k0_1, L2, s2, k0_2]
     lb = [0.0, 1e-3, xmin, 0.0, 1e-3, xmin]
@@ -64,11 +79,11 @@ def fit_double_sigmoid(x: np.ndarray, y: np.ndarray, n_starts: int = 12) -> dict
             p0 = [np.clip(v * (1 + 0.3 * rng.standard_normal()), lo, hi)
                   for v, lo, hi in zip(p0, lb, ub)]
         try:
-            popt, pcov = curve_fit(double_sigmoid, x, y, p0=p0, bounds=(lb, ub), maxfev=20000)
+            popt, pcov = curve_fit(double_sigmoid, x, y, p0=p0, bounds=(lb, ub), maxfev=20000, sigma=sigma)
         except Exception:
             continue
         resid = y - double_sigmoid(x, *popt)
-        rss = float(np.sum(resid ** 2))
+        rss = float(np.sum(w * resid ** 2))
         if best is None or rss < best[0]:
             best = (rss, popt, pcov)
     if best is None:
@@ -94,6 +109,7 @@ def fit_double_sigmoid(x: np.ndarray, y: np.ndarray, n_starts: int = 12) -> dict
         "rmse": float(np.sqrt(np.mean(resid ** 2))),
         "aicc": _aicc(resid, 6, len(x)),
         "n_points": int(len(x)),
+        "weighted": bool(uneven),
     }
 
 

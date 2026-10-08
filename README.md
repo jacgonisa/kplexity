@@ -73,6 +73,17 @@ Two sigmoids add up to the curve. The six parameters are just its shape:
 
 ---
 
+## Explore a curve in the browser
+
+**[jacgonisa.github.io/kplexity](https://jacgonisa.github.io/kplexity/)** fits a k-plexity curve and
+shows it against 1,682 chromosome-level Darwin Tree of Life genomes (median and 50% / 90% bands per clade;
+plants, vertebrates, invertebrates, fungi). Drop in the `.kplex.csv` from `kplex run` (or any `k, fraction`
+table); the fit runs in your browser and nothing is uploaded. You get the six parameters, where each one falls
+within each clade, and any DToL species overlaid by name. The page does not count *k*-mers itself; use
+`kplex run` for that.
+
+---
+
 ## Acknowledgements
 
 - The original idea for k-plexity is **Katie Jenike's**.
@@ -90,6 +101,7 @@ kplex/        the CLI (run / fit / plot)
 FASTK/        the k-mer counter  (git submodule → jacgonisa/FASTK; wraps FASTK by Gene Myers)
 assets/       figures
 animation/    the explainer
+docs/         the browser explorer (GitHub Pages)
 ```
 
 **Contact:** Jacob Gonzalez · [github.com/jacgonisa](https://github.com/jacgonisa)
