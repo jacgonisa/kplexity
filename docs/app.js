@@ -101,9 +101,9 @@ function plotTraces() {
               line: { color: dark() ? "#ffffff" : "#000000", width: 2.6 }, name: "double-sigmoid fit" });
     if ($("show-components").checked) {
       tr.push({ x: kk, y: kk.map(x => f.L1 / (1 + Math.exp(-f.s1 * (x - f.k0_1)))), mode: "lines",
-                line: { color: "#888", width: 1.4, dash: "dash" }, name: "component 1 (L1)" });
+                line: { color: "#888", width: 1.4, dash: "dash" }, name: `component 1 (L1 = ${f.L1.toFixed(3)})` });
       tr.push({ x: kk, y: kk.map(x => f.L2 / (1 + Math.exp(-f.s2 * (x - f.k0_2)))), mode: "lines",
-                line: { color: "#d1495b", width: 1.6, dash: "dash" }, name: "component 2 (L2)" });
+                line: { color: "#d1495b", width: 1.6, dash: "dash" }, name: `component 2 (L2 = ${f.L2.toFixed(3)})` });
     }
   }
   return tr;
@@ -119,11 +119,21 @@ function layout() {
       ann.push({ x: USER.fit[key], y: 1, yref: "paper", text: `${lab} = ${USER.fit[key].toFixed(1)}`,
                  showarrow: false, yanchor: "bottom", font: { size: 11, color: "#888" } });
     }
+    if ($("show-components").checked) {         // plateaus: L1, L2 and the asymptote L1 + L2, labelled on the right
+      const f = USER.fit;
+      for (const [v, lab, col] of [[f.L1, "L1", "#888"], [f.L2, "L2", "#d1495b"],
+                                   [f.asymptote, "L1+L2 (asymptote)", ink]]) {
+        shapes.push({ type: "line", x0: 0, x1: 155, y0: v, y1: v, line: { color: col, width: 1, dash: "dot" } });
+        ann.push({ x: 1, xref: "paper", y: v, xanchor: "left", text: `${lab} = ${v.toFixed(3)}`, showarrow: false,
+                   font: { size: 11, color: col } });
+      }
+    }
   }
+  const labelled = USER && $("show-components").checked;
   return {
     font: { family: "Arial, Helvetica, sans-serif", color: ink, size: 13 },
     paper_bgcolor: bgColor(), plot_bgcolor: bgColor(),
-    margin: { l: 58, r: 12, t: 30, b: 50 },
+    margin: { l: 58, r: labelled ? 150 : 12, t: 30, b: 50 },
     xaxis: { title: "k", range: [0, 155], gridcolor: grid, zeroline: false },
     yaxis: { title: "fraction of unique k-mers", range: [0, 1.02], gridcolor: grid, zeroline: false },
     legend: { orientation: "h", y: -0.18, font: { size: 11 } },
