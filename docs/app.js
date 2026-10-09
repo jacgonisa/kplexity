@@ -194,8 +194,17 @@ function renderStrips() {
                marker: { size: 4, color: hexA(COLORS[c], 0.45) }, text: s.map(x => x.name),
                hovertemplate: `%{text}<br>${lab} = %{x:.3f}<extra></extra>`, showlegend: false };
     });
-    const shapes = USER ? [{ type: "line", x0: userVal(key), x1: userVal(key), y0: 0, y1: 1, yref: "paper",
-                             line: { color: dark() ? "#fff" : "#000", width: 2.5 } }] : [];
+    const shapes = [];
+    clades.forEach((c, i) => {                // faint per-clade median (solid) and mean (dotted)
+      const v = REF.species.filter(x => x.clade === c).map(x => x[key]).filter(Number.isFinite).sort((a, b) => a - b);
+      if (!v.length) return;
+      const m = v.length >> 1, med = v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2, mean = v.reduce((a, b) => a + b, 0) / v.length;
+      for (const [x, dash] of [[med, "solid"], [mean, "dot"]])
+        shapes.push({ type: "line", x0: x, x1: x, y0: i - 0.45, y1: i + 0.45,
+                      line: { color: hexA(COLORS[c], 0.8), width: 2.5, dash } });
+    });
+    if (USER) shapes.push({ type: "line", x0: userVal(key), x1: userVal(key), y0: 0, y1: 1, yref: "paper",
+                            line: { color: dark() ? "#fff" : "#000", width: 2.5 } });
     const ink = dark() ? "#e6e6e1" : "#1f2328";
     Plotly.newPlot(div, tr, {
       font: { family: "Arial, Helvetica, sans-serif", color: ink, size: 11 },
