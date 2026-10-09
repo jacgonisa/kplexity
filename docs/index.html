@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -16,6 +16,10 @@
     assemblies. Everything runs in your browser; nothing is uploaded.</p>
   <p class="links"><a href="https://github.com/jacgonisa/kplexity">GitHub &amp; command-line tool</a> ·
     curves come from <code>kplex run genome.fa</code></p>
+  <div class="theme" role="group" aria-label="Colour theme">
+    <button type="button" data-theme-set="light" aria-pressed="true">Light</button>
+    <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+  </div>
 </header>
 
 <main>
@@ -33,7 +37,14 @@
 …"></textarea>
       <button id="btn-paste" type="button">Fit pasted curve</button>
     </details>
-    <button id="btn-example" type="button" class="secondary">Load example (Arabidopsis thaliana)</button>
+    <div class="row">
+      <label for="example">Example</label>
+      <select id="example">
+        <option value="arabidopsis">Arabidopsis thaliana (Col-CC / TAIR12)</option>
+        <option value="human">Human (CHM13 v2.0)</option>
+      </select>
+      <button id="btn-example" type="button" class="secondary">Load</button>
+    </div>
     <p class="hint">Accepted: <code>kplex</code> output (<code>k, unique_kmers, total_kmers</code>), a table with
       <code>fraction_unique_theoretical</code> or <code>fraction_unique</code>, or any two columns
       <code>k, fraction</code>. Best with every <i>k</i> from 5 to 151.</p>
@@ -42,7 +53,13 @@
 
   <section class="panel compare" aria-labelledby="h-compare">
     <h2 id="h-compare">2 · Compare with</h2>
+    <p class="muted small">Pick the background(s) to superimpose your curve on.</p>
     <div id="clade-toggles" class="toggles"></div>
+    <div class="row">
+      <label for="opacity">Opacity</label>
+      <input type="range" id="opacity" min="0" max="100" value="60" aria-label="background opacity">
+      <span id="opacity-val" class="muted small">60%</span>
+    </div>
     <div class="row">
       <label for="bands">Bands</label>
       <select id="bands">
@@ -54,7 +71,7 @@
     </div>
     <div class="row">
       <label for="species">Species</label>
-      <input id="species" list="species-list" placeholder="type a DToL species…" autocomplete="off">
+      <input id="species" list="species-list" placeholder="type one of the 323 species…" autocomplete="off">
       <datalist id="species-list"></datalist>
       <button id="btn-species" type="button" class="secondary">Add</button>
     </div>
@@ -103,8 +120,9 @@
 </main>
 
 <footer>
-  <p>Background: <span id="ref-n"></span> chromosome-level Darwin Tree of Life assemblies, exact
-    <i>k</i>-mer totals (N-free), fitted with the same double-sigmoid model. Protists are not shown.</p>
+  <p>Background: <span id="ref-n"></span> chromosome-level Darwin Tree of Life genomes with repeat annotation
+    (the genome set analysed in the paper; its three protists are not shown), exact <i>k</i>-mer totals (N-free),
+    fitted with the same double-sigmoid model. A few curves stop between <i>k</i> = 142 and 150.</p>
 </footer>
 
 <script type="module" src="app.js"></script>

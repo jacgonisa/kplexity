@@ -76,10 +76,11 @@ Two sigmoids add up to the curve. The six parameters are just its shape:
 ## Explore a curve in the browser
 
 **[jacgonisa.github.io/kplexity](https://jacgonisa.github.io/kplexity/)** fits a k-plexity curve and
-shows it against 1,682 chromosome-level Darwin Tree of Life genomes (median and 50% / 90% bands per clade;
-plants, vertebrates, invertebrates, fungi). Drop in the `.kplex.csv` from `kplex run` (or any `k, fraction`
+shows it against 323 chromosome-level Darwin Tree of Life genomes with repeat annotation (median and 50% / 90%
+bands per clade, adjustable opacity; plants, vertebrates, invertebrates, fungi). Arabidopsis and human examples
+are built in, and the page has a light and a dark theme. Drop in the `.kplex.csv` from `kplex run` (or any `k, fraction`
 table); the fit runs in your browser and nothing is uploaded. You get the six parameters, where each one falls
-within each clade, and any DToL species overlaid by name. The page does not count *k*-mers itself; use
+within each clade, and any of these species overlaid by name. The page does not count *k*-mers itself; use
 `kplex run` for that.
 
 ---

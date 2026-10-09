@@ -4,11 +4,13 @@ const COLORS = { Viridiplantae: "#228833", Vertebrates: "#4477AA", Invertebrates
 const SHORT = { Viridiplantae: "plants", Vertebrates: "vertebr.", Invertebrates: "invertebr.", Fungi: "fungi" };
 const SPECIES_COLORS = ["#EE7733", "#009988", "#33BBEE", "#EE3377", "#BBBBBB"];
 const $ = id => document.getElementById(id);
-const dark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+const dark = () => document.documentElement.dataset.theme === "dark";
+const bgColor = () => (dark() ? "#1d2126" : "#ffffff");
+const opacity = () => $("opacity").value / 100;      // background (clade) opacity, 0-1
 
 let REF = null;              // reference data
 let USER = null;             // {name, k, y, fit, single}
-const shownClades = new Set(["Viridiplantae", "Vertebrates", "Invertebrates"]);
+const shownClades = new Set(["Viridiplantae", "Vertebrates"]);
 const shownSpecies = [];
 
 // ---------------------------------------------------------------- parsing
@@ -79,13 +81,13 @@ function band(k, lo, hi, color, a, name) {
 }
 
 function plotTraces() {
-  const tr = [], K = REF.k, mode = $("bands").value;
+  const tr = [], K = REF.k, mode = $("bands").value, a = opacity();
   for (const c of Object.keys(COLORS)) {
     if (!shownClades.has(c)) continue;
     const q = REF.clades[c], col = COLORS[c];
-    if (mode === "both" || mode === "90") tr.push(...band(K, q.p05, q.p95, col, 0.10, c));
-    if (mode === "both" || mode === "50") tr.push(...band(K, q.p25, q.p75, col, 0.22, c));
-    tr.push({ x: K, y: q.p50, mode: "lines", line: { color: col, width: 2.2 },
+    if (mode === "both" || mode === "90") tr.push(...band(K, q.p05, q.p95, col, 0.20 * a, c));
+    if (mode === "both" || mode === "50") tr.push(...band(K, q.p25, q.p75, col, 0.42 * a, c));
+    tr.push({ x: K, y: q.p50, mode: "lines", line: { color: hexA(col, Math.min(1, 0.25 + a)), width: 2.2 },
               name: `${c} median (n = ${q.n})`, hovertemplate: `${c} median<br>k=%{x}: %{y:.3f}<extra></extra>` });
   }
   shownSpecies.forEach((s, i) => tr.push({
@@ -120,7 +122,7 @@ function layout() {
   }
   return {
     font: { family: "Arial, Helvetica, sans-serif", color: ink, size: 13 },
-    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    paper_bgcolor: bgColor(), plot_bgcolor: bgColor(),
     margin: { l: 58, r: 12, t: 30, b: 50 },
     xaxis: { title: "k", range: [0, 155], gridcolor: grid, zeroline: false },
     yaxis: { title: "fraction of unique k-mers", range: [0, 1.02], gridcolor: grid, zeroline: false },
@@ -139,6 +141,7 @@ const userVal = key => ({ asym: USER.fit.asymptote, frac: USER.fit.L2_frac }[key
 
 function percentile(vals, v) {
   let below = 0;
+  vals = vals.filter(Number.isFinite);
   for (const x of vals) if (x < v) below++;
   return Math.round(100 * below / vals.length);
 }
@@ -182,7 +185,7 @@ function renderStrips() {
     const ink = dark() ? "#e6e6e1" : "#1f2328";
     Plotly.newPlot(div, tr, {
       font: { family: "Arial, Helvetica, sans-serif", color: ink, size: 11 },
-      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      paper_bgcolor: bgColor(), plot_bgcolor: bgColor(),
       margin: { l: 90, r: 10, t: 22, b: 26 }, title: { text: lab, font: { size: 12 }, x: 0.01, y: 0.97 },
       yaxis: { tickvals: clades.map((_, i) => i), ticktext: clades, range: [-0.6, clades.length - 0.4],
                gridcolor: "rgba(0,0,0,0)", zeroline: false },
@@ -228,11 +231,28 @@ function buildControls() {
   ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
   drop.addEventListener("drop", e => readFile(e.dataTransfer.files[0]));
   $("btn-paste").addEventListener("click", () => loadText($("paste").value, "pasted curve"));
-  $("btn-example").addEventListener("click", () => loadText(REF.example.csv, "Arabidopsis thaliana (TAIR12)"));
+  $("btn-example").addEventListener("click", () => loadExample($("example").value));
+  $("opacity").addEventListener("input", () => {
+    $("opacity-val").textContent = `${$("opacity").value}%`;
+    Plotly.react("plot", plotTraces(), layout(), { responsive: true, displaylogo: false });
+  });
+  document.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => setTheme(b.dataset.themeSet)));
   $("btn-csv").addEventListener("click", downloadCsv);
   $("btn-png").addEventListener("click", () => Plotly.downloadImage("plot", { format: "png", width: 1400, height: 800,
                                                                              filename: `${USER.name}_kplexity` }));
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+}
+
+function setTheme(t, save = true) {
+  document.documentElement.dataset.theme = t;
+  document.querySelectorAll("[data-theme-set]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.themeSet === t)));
+  if (save) { try { localStorage.setItem("kplex-theme", t); } catch (e) { /* storage unavailable */ } }
+  if (REF) render();
+}
+
+function loadExample(key) {
+  const ex = REF.examples[key] || REF.examples.arabidopsis;
+  $("example").value = key in REF.examples ? key : "arabidopsis";
+  loadText(ex.csv, ex.name);
 }
 
 function renderChips() {
@@ -259,13 +279,25 @@ function downloadCsv() {
 }
 
 // ---------------------------------------------------------------- start
+try { const t = localStorage.getItem("kplex-theme"); if (t === "dark" || t === "light") setTheme(t, false); } catch (e) { /* default light */ }
 fetch("data/dtol_reference.json")
   .then(r => r.json())
   .then(ref => {
     REF = ref; buildControls(); render();
     setStatus("Reference loaded. Load a curve or try the example.");
     const q = new URLSearchParams(location.search);
-    if (q.has("example")) loadText(REF.example.csv, "Arabidopsis thaliana (TAIR12)");
+    if (q.has("example")) loadExample(q.get("example") || "arabidopsis");
+    if (q.get("bg")) {
+      shownClades.clear();
+      const ALIAS = { plant: "Viridiplantae", plants: "Viridiplantae", vert: "Vertebrates", invert: "Invertebrates",
+                      fungus: "Fungi", none: null };
+      q.get("bg").split(",").forEach(c => {
+        c = c.trim().toLowerCase();
+        const m = c in ALIAS ? ALIAS[c] : Object.keys(COLORS).find(x => x.toLowerCase().startsWith(c));
+        if (m) shownClades.add(m);
+      });
+      document.querySelectorAll("#clade-toggles input").forEach((el, i) => { el.checked = shownClades.has(Object.keys(COLORS)[i]); });
+    }
     if (q.get("species")) q.get("species").split(",").forEach(n => {
       const s = REF.species.find(x => x.name.toLowerCase() === n.trim().toLowerCase());
       if (s && !shownSpecies.includes(s)) shownSpecies.push(s);

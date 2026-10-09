@@ -20,7 +20,10 @@ function check(name, k, y, pPy) {
 
 const step = Math.max(1, Math.floor(ref.species.length / 30));
 const full = ref.species.filter((_, i) => i % step === 0).slice(0, 30)
-  .map(s => check(s.name, ref.k, s.y, PARAMS.map(p => s[p])));
+  .map(s => {                                   // some curves stop before k = 151 (null beyond)
+    const ok = s.y.map(v => v !== null);
+    return check(s.name, ref.k.filter((_, i) => ok[i]), s.y.filter(v => v !== null), PARAMS.map(p => s[p]));
+  });
 const sk = sketch.map(s => check(s.name + " (25 k)", s.k, s.y, s.p));
 let bad = 0;
 for (const r of [...full, ...sk]) {
