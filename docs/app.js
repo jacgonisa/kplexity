@@ -181,7 +181,8 @@ function renderResults() {
           clades.map(c => `<th title="percentile within ${c} (0 = lowest, 100 = highest)"><span class="swatch" style="display:inline-block;background:${COLORS[c]}"></span> ${SHORT[c]}</th>`).join("") + `</tr>`;
   for (const [lab, key, d] of ROWS) {
     const v = userVal(key);
-    h += `<tr><td>${lab}</td><td><b>${fmt(v, d)}</b></td>` +
+    const na = USER.model.call === "single" && ["L2", "s2", "k0_2", "frac"].includes(key);
+    h += `<tr${na ? ' class="na" title="no distinct second transition: not meaningful"' : ""}><td>${lab}</td><td><b>${fmt(v, d)}</b></td>` +
          clades.map(c => `<td>${percentile(byClade[c].map(s => s[key]), v)}</td>`).join("") + `</tr>`;
   }
   h += `</table></div>`;

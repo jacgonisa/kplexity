@@ -75,6 +75,7 @@ table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
 th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 th:first-child, td:first-child { text-align: left; }
 th { color: var(--muted); font-weight: normal; }
+tr.na td { color: var(--muted); opacity: 0.55; }
 .model { margin: 10px 0; font-size: 0.9rem; }
 .buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .strips { display: grid; gap: 4px; }
