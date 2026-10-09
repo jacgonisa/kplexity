@@ -80,8 +80,9 @@ shows it against 323 chromosome-level Darwin Tree of Life genomes with repeat an
 bands per clade, adjustable opacity; plants, vertebrates, invertebrates, fungi). Arabidopsis and human examples
 are built in, and the page has a light and a dark theme. Drop in the `.kplex.csv` from `kplex run` (or any `k, fraction`
 table); the fit runs in your browser and nothing is uploaded. You get the six parameters, where each one falls
-within each clade, and any of these species overlaid by name. The page does not count *k*-mers itself; use
-`kplex run` for that.
+within each clade, and any of these species overlaid by name. A "Reading the parameters" section shows, for each parameter,
+the evidence behind its interpretation (reference genomes and simulations). The page does not count *k*-mers itself;
+use `kplex run` for that.
 
 ---
 

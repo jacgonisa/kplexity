@@ -1,4 +1,5 @@
 import { fitDoubleSigmoid, fitSingleSigmoid, doubleSigmoid, PARAMS } from "./fit.js";
+import { fillStats, renderEvidence } from "./evidence.js";
 
 const COLORS = { Viridiplantae: "#228833", Vertebrates: "#4477AA", Invertebrates: "#CC6677", Fungi: "#AA4499" };
 const SHORT = { Viridiplantae: "plants", Vertebrates: "vertebr.", Invertebrates: "invertebr.", Fungi: "fungi" };
@@ -25,8 +26,11 @@ function parseCurve(text) {
   const col = name => header.indexOf(name);
   const iK = col("k") >= 0 ? col("k") : 0;
   let get;
+  let G = null;                                   // genome size (ACGT) from T(k) + k - 1, when T is given
   if (col("unique_kmers") >= 0 && col("total_kmers") >= 0) {
     get = r => parseFloat(r[col("unique_kmers")]) / parseFloat(r[col("total_kmers")]);
+    const r0 = rows.find(r => Number.isFinite(parseFloat(r[iK])));
+    if (r0) G = parseFloat(r0[col("total_kmers")]) + parseFloat(r0[iK]) - 1;
   } else if (col("fraction_unique_theoretical") >= 0) {
     get = r => parseFloat(r[col("fraction_unique_theoretical")]);
   } else if (col("fraction_unique") >= 0) {
@@ -39,7 +43,7 @@ function parseCurve(text) {
                   .sort((a, b) => a[0] - b[0]);
   if (pts.length < 7) throw new Error("fewer than 7 numeric rows (need k and a fraction or U and T)");
   if (pts.some(([, y]) => y < 0 || y > 1.0001)) throw new Error("fractions must lie between 0 and 1");
-  return { k: pts.map(p => p[0]), y: pts.map(p => p[1]) };
+  return { k: pts.map(p => p[0]), y: pts.map(p => p[1]), G: Number.isFinite(G) ? G : null };
 }
 
 // ---------------------------------------------------------------- user curve
@@ -49,12 +53,12 @@ function setStatus(msg, err = false) {
 
 function loadText(text, name) {
   try {
-    const { k, y } = parseCurve(text);
+    const { k, y, G } = parseCurve(text);
     setStatus(`Fitting ${k.length} points…`);
     setTimeout(() => {
       const fit = fitDoubleSigmoid(k, y), single = fitSingleSigmoid(k, y);
       if (!fit) { setStatus("The double-sigmoid fit failed on this curve.", true); return; }
-      USER = { name, k, y, fit, single };
+      USER = { name, k, y, G, fit, single };
       const warn = (k[0] > 5 || k[k.length - 1] < 151) ? ` (k = ${k[0]}–${k[k.length - 1]}; the reference uses 5–151)` : "";
       const wnote = fit.weighted ? "; uneven k, so each point is weighted by the k-span it covers" : "";
       setStatus(`${name}: ${k.length} points, R² = ${fit.R2.toFixed(4)}${warn}${wnote}`);
@@ -208,7 +212,9 @@ function render() {
   Plotly.react("plot", plotTraces(), layout(), { responsive: true, displaylogo: false });
   renderResults();
   renderStrips();
+  document.querySelectorAll(".guide details[open]").forEach(d => renderEvidence(d, evCtx()));
 }
+const evCtx = () => ({ REF, USER, COLORS, dark, bgColor });
 
 // ---------------------------------------------------------------- controls
 function buildControls() {
@@ -293,7 +299,11 @@ try { const t = localStorage.getItem("kplex-theme"); if (t === "dark" || t === "
 fetch("data/dtol_reference.json")
   .then(r => r.json())
   .then(ref => {
-    REF = ref; buildControls(); render();
+    REF = ref; buildControls(); fillStats(REF);
+    document.querySelectorAll(".guide details").forEach(d => d.addEventListener("toggle", () => {
+      if (d.open) renderEvidence(d, evCtx());
+    }));
+    render();
     setStatus("Reference loaded. Load a curve or try the example.");
     const q = new URLSearchParams(location.search);
     if (q.has("example")) loadExample(q.get("example") || "arabidopsis");
@@ -312,6 +322,7 @@ fetch("data/dtol_reference.json")
       const s = REF.species.find(x => x.name.toLowerCase() === n.trim().toLowerCase());
       if (s && !shownSpecies.includes(s)) shownSpecies.push(s);
     });
+    if (q.has("evidence")) document.querySelectorAll(".guide details").forEach(d => { d.open = true; });
     renderChips(); render();
   })
   .catch(e => setStatus(`Could not load the reference data: ${e.message}`, true));

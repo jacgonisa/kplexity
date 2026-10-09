@@ -100,21 +100,73 @@
 
   <section class="panel guide" aria-labelledby="h-guide">
     <h2 id="h-guide">Reading the parameters</h2>
+    <p class="muted small">Each reading below comes with the evidence behind it: the 323 reference genomes
+      (repeat content from EDTA for transposable elements and TRASH for satellites) and simulated 500-kb genomes
+      where the repeat content is known. Open a panel to see the plot. Once you load a curve, your value is
+      drawn as a black line.</p>
     <dl>
       <dt>k0_1 · first transition</dt>
-      <dd>Where most of the genome becomes unique. Set by genome size: about log<sub>4</sub>(genome size).</dd>
+      <dd>The <i>k</i> at which most of the genome becomes unique. In random sequence this happens at
+        <i>k</i> ≈ log<sub>4</sub>(genome size). Across the reference genomes k0_1 tracks log<sub>4</sub>(genome size)
+        closely (r = <span data-stat="r_k01"></span>), about one <i>k</i> above it (median
+        +<span data-stat="off_k01"></span>).
+        <details data-plot="k0_1"><summary>Show the evidence</summary><div class="ev-plot"></div>
+          <p class="ev-cap">Each dot is a reference genome. Dashed line: k0_1 = log<sub>4</sub>(genome size), the
+            random-sequence expectation (a simulated random 500-kb sequence rises at <i>k</i> =
+            <span data-stat="rand_k0"></span>; log<sub>4</sub> = 9.5). Your genome appears here only if the file
+            has <code>total_kmers</code>, which gives its size.</p></details></dd>
+
       <dt>L2 · second component</dt>
-      <dd>Fraction of <i>k</i>-mers that only become unique at the second, later transition: sequence in
-        many copies that are similar but not identical (young transposable elements such as Alu;
-        partly homogenised satellites). Across species it tracks repeat (TE) content.</dd>
+      <dd>The share of <i>k</i>-mers that become unique only at the second, later transition: sequence in several
+        copies that are similar but not identical (intermediate copy identity, e.g. young transposable elements,
+        partly homogenised arrays). Across the reference genomes L2 tracks transposable-element content
+        (r = <span data-stat="r_te_L2"></span>), not satellite content (r = <span data-stat="r_sat_L2"></span>).
+        It is <b>not</b> total repeat content: in simulation, copies that differ by 15% or more become unique together
+        with the rest of the genome and add little to L2. If the curve has no clear second transition (k0_2 close to
+        k0_1), the split between L1 and L2 has no meaning.
+        <details data-plot="L2"><summary>Show the evidence</summary><div class="ev-plot"></div>
+          <p class="ev-cap">Left: L2 against transposable-element content in the reference genomes. Right:
+            simulated genomes, each with 30% of its sequence in 5-kb repeat copies, differing only in how far the
+            copies have diverged. The repeat amount is constant, but L2 falls as the copies diverge. At 1%, some copies are
+            still not unique at <i>k</i> = 151 and count against the asymptote instead. Open circle: the second
+            transition has merged with the first (k0_2 within 2 of k0_1), so L2 there means nothing.</p></details></dd>
+
       <dt>k0_2 · second transition</dt>
-      <dd>The <i>k</i> at which those copies become distinguishable, roughly how long identical stretches
-        between copies are. Younger, less diverged repeats give a larger k0_2.</dd>
+      <dd>The <i>k</i> at which those similar copies become distinguishable: a <i>k</i>-mer must be long enough to
+        include a difference between copies. In simulation k0_2 falls as copies diverge
+        (<span data-stat="aging_k02"></span>), so less-diverged, typically younger, copies give a larger k0_2.
+        In a real genome k0_2 averages over many repeat families of different ages. It has not yet been tested
+        against an independent measure of repeat age. Across the reference genomes it is unrelated to
+        transposable-element content (r = <span data-stat="r_te_k02"></span>) and to genome size
+        (r = <span data-stat="r_G_k02"></span>).
+        <details data-plot="k0_2"><summary>Show the evidence</summary><div class="ev-plot"></div>
+          <p class="ev-cap">Left: the simulated genomes above, k0_2 against divergence between copies. Right: k0_2 in
+            the reference genomes, by clade. Open circle: second transition merged with the first.</p></details></dd>
+
       <dt>asymptote = L1 + L2</dt>
-      <dd>Fraction unique at long <i>k</i>. The remainder, 1 − asymptote, is sequence in near-identical
-        copies that no <i>k</i> up to 151 tells apart (e.g. centromeric arrays, rDNA, recent duplications).</dd>
+      <dd>Fraction unique at the longest <i>k</i>. The rest, 1 − asymptote, is sequence in copies so similar that
+        <i>k</i> = 151 still cannot tell them apart. In simulation, 1 − asymptote equals the share of the genome in
+        perfect tandem arrays. In real genomes it correlates only moderately with satellite content
+        (r = <span data-stat="r_sat_na"></span>) and with transposable-element content
+        (r = <span data-stat="r_te_na"></span>). It reflects the most homogeneous copies rather than the total amount
+        of repeats: in the human genome, rDNA and α-satellite higher-order arrays never become unique, while other
+        satellite arrays do. It can only count copies that are present in the assembly.
+        <details data-plot="asym"><summary>Show the evidence</summary><div class="ev-plot"></div>
+          <p class="ev-cap">Left: simulated genomes with 2–50% of their sequence in perfect tandem arrays; the
+            dashed line is equality. Right: 1 − asymptote against satellite content in the reference genomes.</p></details></dd>
+
       <dt>s1, s2 · steepness</dt>
-      <dd>How sharp each transition is.</dd>
+      <dd>How sharp each transition is. In random sequence the rise is steep (slope ≈
+        <span data-stat="rand_s"></span> in simulation). Real genomes are shallower (median s1 =
+        <span data-stat="med_s1"></span>), more so in larger, transposon-rich genomes (r = <span data-stat="r_te_s1"></span>
+        with transposable-element content). In simulation s2 rises with divergence between copies
+        (<span data-stat="aging_s2"></span>). In real genomes s2 shows no simple relation with transposable-element
+        content (r = <span data-stat="r_te_s2"></span>). Read s1 and s2 as describing the shape of the curve, not as
+        measures of a particular repeat type.
+        <details data-plot="s"><summary>Show the evidence</summary><div class="ev-plot"></div>
+          <p class="ev-cap">Left: s1 against transposable-element content in the reference genomes; the dashed line
+            is the slope of a random sequence. Right: s2 against divergence between copies in the simulated
+            genomes (open circle: second transition merged with the first).</p></details></dd>
     </dl>
   </section>
 </main>
