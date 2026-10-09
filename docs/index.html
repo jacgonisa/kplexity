@@ -22,7 +22,12 @@
   </div>
 </header>
 
-<main>
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <a href="#explore" role="tab" data-tab="explore" aria-selected="true">Explorer</a>
+  <a href="#parameters" role="tab" data-tab="parameters" aria-selected="false">Reading the parameters</a>
+</nav>
+
+<main id="tab-explore" class="explore" role="tabpanel">
   <section class="panel input" aria-labelledby="h-input">
     <h2 id="h-input">1 · Your curve</h2>
     <label class="drop" id="drop">
@@ -90,6 +95,7 @@
   <section class="panel results" aria-labelledby="h-results">
     <h2 id="h-results">3 · Fit</h2>
     <div id="results"><p class="muted">Load a curve to see its parameters.</p></div>
+    <p class="small"><a href="#parameters" data-tab="parameters">What the parameters mean, and the evidence →</a></p>
     <div class="buttons">
       <button id="btn-csv" type="button" class="secondary" disabled>Download parameters (CSV)</button>
       <button id="btn-png" type="button" class="secondary" disabled>Download plot (PNG)</button>
@@ -101,9 +107,13 @@
     <p class="muted small">Each dot is one DToL genome (fitted the same way); the black line is yours. Faint coloured ticks: each clade's median (solid) and mean (dotted).</p>
     <div id="strips" class="strips"></div>
   </section>
+</main>
 
+<main id="tab-parameters" class="params" role="tabpanel" hidden>
   <section class="panel guide" aria-labelledby="h-guide">
     <h2 id="h-guide">Reading the parameters</h2>
+    <p class="small">What each double-sigmoid parameter does and does not tell you about a genome.
+      <a href="#explore" data-tab="explore">Back to the explorer</a></p>
     <p class="muted small">Each reading below comes with the evidence behind it: the 323 reference genomes
       (repeat content from EDTA for transposable elements and TRASH for satellites) and simulated 500-kb genomes
       where the repeat content is known. Open a panel to see the plot. Once you load a curve, your value is

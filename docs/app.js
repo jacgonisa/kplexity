@@ -324,6 +324,23 @@ function downloadCsv() {
   URL.revokeObjectURL(a.href);
 }
 
+// ---------------------------------------------------------------- tabs
+function showTab(name, push = true) {
+  if (name !== "parameters") name = "explore";
+  $("tab-explore").hidden = name !== "explore";
+  $("tab-parameters").hidden = name !== "parameters";
+  document.querySelectorAll(".tabs a").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
+  if (push && location.hash !== `#${name}`) history.replaceState(null, "", `${location.search}#${name}`);
+  if (!REF) return;
+  render();                                           // plots drawn while hidden need re-sizing
+  document.querySelectorAll(`#tab-${name} .js-plotly-plot`).forEach(d => Plotly.Plots.resize(d));
+}
+document.querySelectorAll("a[data-tab]").forEach(t => t.addEventListener("click", e => {
+  e.preventDefault(); showTab(t.dataset.tab); window.scrollTo(0, 0);
+}));
+window.addEventListener("hashchange", () => showTab(location.hash.slice(1), false));
+showTab(location.hash.slice(1) || (new URLSearchParams(location.search).has("evidence") ? "parameters" : "explore"), false);
+
 // ---------------------------------------------------------------- start
 try { const t = localStorage.getItem("kplex-theme"); if (t === "dark" || t === "light") setTheme(t, false); } catch (e) { /* default light */ }
 fetch("data/dtol_reference.json")
