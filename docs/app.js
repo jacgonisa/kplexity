@@ -58,7 +58,7 @@ function loadText(text, name) {
     setTimeout(() => {
       const fit = fitDoubleSigmoid(k, y), single = fitSingleSigmoid(k, y);
       if (!fit) { setStatus("The double-sigmoid fit failed on this curve.", true); return; }
-      USER = { name, k, y, G, fit, single };
+      USER = { name, k, y, G, fit, single, model: modelCall(k, y, fit) };
       const warn = (k[0] > 5 || k[k.length - 1] < 151) ? ` (k = ${k[0]}–${k[k.length - 1]}; the reference uses 5–151)` : "";
       const wnote = fit.weighted ? "; uneven k, so each point is weighted by the k-span it covers" : "";
       setStatus(`${name}: ${k.length} points, R² = ${fit.R2.toFixed(4)}${warn}${wnote}`);
@@ -68,6 +68,16 @@ function loadText(text, name) {
   } catch (e) {
     setStatus(`Could not read the curve: ${e.message}`, true);
   }
+}
+
+// single vs double: the paper's two criteria (Supp. S1), late gain after k = 25 >= 0.05 and k0_2/k0_1 >= 2
+function modelCall(k, y, fit) {
+  const at = kk => { const i = k.findIndex(x => x >= kk);
+    if (i <= 0) return y[Math.max(i, 0)];
+    const t = (kk - k[i - 1]) / (k[i] - k[i - 1]); return y[i - 1] + t * (y[i] - y[i - 1]); };
+  const late = y[y.length - 1] - at(25), ratio = fit.k0_2 / fit.k0_1;
+  const call = late >= 0.05 && ratio >= 2 ? "double" : late < 0.05 && ratio < 2 ? "single" : "borderline";
+  return { call, late, ratio };
 }
 
 // ---------------------------------------------------------------- plot
@@ -103,7 +113,7 @@ function plotTraces() {
               name: `${USER.name} (data)`, hovertemplate: "k=%{x}: %{y:.4f}<extra></extra>" });
     tr.push({ x: kk, y: kk.map(x => doubleSigmoid(x, f.p)), mode: "lines",
               line: { color: dark() ? "#ffffff" : "#000000", width: 2.6 }, name: "double-sigmoid fit" });
-    if ($("show-components").checked) {
+    if ($("show-components").checked && USER.model.call !== "single") {
       tr.push({ x: kk, y: kk.map(x => f.L1 / (1 + Math.exp(-f.s1 * (x - f.k0_1)))), mode: "lines",
                 line: { color: "#888", width: 1.4, dash: "dash" }, name: `component 1 (L1 = ${f.L1.toFixed(3)})` });
       tr.push({ x: kk, y: kk.map(x => f.L2 / (1 + Math.exp(-f.s2 * (x - f.k0_2)))), mode: "lines",
@@ -117,7 +127,8 @@ function layout() {
   const ink = dark() ? "#e6e6e1" : "#1f2328", grid = dark() ? "#2e343b" : "#ececE6";
   const shapes = [], ann = [];
   if (USER) {
-    for (const [key, lab] of [["k0_1", "k0_1"], ["k0_2", "k0_2"]]) {
+    const keys = USER.model.call === "single" ? [["k0_1", "k0_1"]] : [["k0_1", "k0_1"], ["k0_2", "k0_2"]];
+    for (const [key, lab] of keys) {
       shapes.push({ type: "line", x0: USER.fit[key], x1: USER.fit[key], y0: 0, y1: 1, yref: "paper",
                     line: { color: "#999", width: 1, dash: "dot" } });
       ann.push({ x: USER.fit[key], y: 1, yref: "paper", text: `${lab} = ${USER.fit[key].toFixed(1)}`,
@@ -125,8 +136,9 @@ function layout() {
     }
     if ($("show-components").checked) {         // plateaus: L1, L2 and the asymptote L1 + L2, labelled on the right
       const f = USER.fit;
-      for (const [v, lab, col] of [[f.L1, "L1", "#888"], [f.L2, "L2", "#d1495b"],
-                                   [f.asymptote, "L1+L2 (asymptote)", ink]]) {
+      const lines = USER.model.call === "single" ? [[f.asymptote, "asymptote", ink]]
+        : [[f.L1, "L1", "#888"], [f.L2, "L2", "#d1495b"], [f.asymptote, "L1+L2 (asymptote)", ink]];
+      for (const [v, lab, col] of lines) {
         shapes.push({ type: "line", x0: 0, x1: 155, y0: v, y1: v, line: { color: col, width: 1, dash: "dot" } });
         ann.push({ x: 1, xref: "paper", y: v, xanchor: "left", text: `${lab} = ${v.toFixed(3)}`, showarrow: false,
                    font: { size: 11, color: col } });
@@ -173,12 +185,20 @@ function renderResults() {
          clades.map(c => `<td>${percentile(byClade[c].map(s => s[key]), v)}</td>`).join("") + `</tr>`;
   }
   h += `</table></div>`;
-  const dA = USER.single.AICc - USER.fit.AICc;
-  h += `<p class="model">R² = ${USER.fit.R2.toFixed(4)} · RMSE = ${USER.fit.RMSE.toExponential(2)}<br>` +
-       `Double vs single sigmoid: ΔAICc = ${dA.toFixed(1)} → ` +
-       (dA > 10 ? "<b>double sigmoid</b> clearly preferred (a repeat-driven second transition)."
-        : dA > 2 ? "double sigmoid preferred."
-        : "<b>single sigmoid</b> is enough (no clear second transition, as in most bacteria).") + `</p>`;
+  // single vs double: the paper's two criteria (Supp. S1). AICc is shown but not used, because it favours the
+  // double sigmoid on almost every real curve (the single sigmoid's shape is too rigid), prokaryotes included.
+  const f = USER.fit, kmax = USER.k[USER.k.length - 1], { call, late, ratio } = USER.model;
+  const lateOk = late >= 0.05, ratioOk = ratio >= 2;
+  const dA = USER.single.AICc - f.AICc;
+  h += `<p class="model">R² = ${f.R2.toFixed(4)} · RMSE = ${f.RMSE.toExponential(2)}</p>` +
+       `<p class="model"><b>${call === "double" ? "Double sigmoid" : call === "single" ? "Single sigmoid" : "Borderline"}</b>: ` +
+       (call === "double" ? "a distinct second transition, from repeats with similar but not identical copies."
+        : call === "single" ? "no distinct second transition, as in most prokaryotes. Read L2, s2 and k0_2 as not meaningful."
+        : "only one of the two criteria is met; interpret L2, s2 and k0_2 with care.") +
+       `<br><span class="muted small">Uniqueness gained after k = 25: ${late.toFixed(3)} (${lateOk ? "≥" : "<"} 0.05) · ` +
+       `k0_2 / k0_1 = ${ratio.toFixed(2)} (${ratioOk ? "≥" : "<"} 2). Double needs both, single neither.` +
+       (kmax < 100 ? ` Your curve stops at k = ${kmax}, so the late gain is underestimated.` : "") +
+       ` ΔAICc (single − double) = ${dA.toFixed(1)}, for information only: AICc prefers two sigmoids on almost any real curve.</span></p>`;
   $("results").innerHTML = h;
 }
 

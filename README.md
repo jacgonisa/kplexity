@@ -77,8 +77,8 @@ Two sigmoids add up to the curve. The six parameters are just its shape:
 
 **[jacgonisa.github.io/kplexity](https://jacgonisa.github.io/kplexity/)** fits a k-plexity curve and
 shows it against 323 chromosome-level Darwin Tree of Life genomes with repeat annotation (median and 50% / 90%
-bands per clade, adjustable opacity; plants, vertebrates, invertebrates, fungi). Arabidopsis and human examples
-are built in, and the page has a light and a dark theme. Drop in the `.kplex.csv` from `kplex run` (or any `k, fraction`
+bands per clade, adjustable opacity; plants, vertebrates, invertebrates, fungi). Example curves are built in (Arabidopsis,
+human, barley, a ladybird, an oyster mushroom and *E. coli*), and the page has a light and a dark theme. Drop in the `.kplex.csv` from `kplex run` (or any `k, fraction`
 table); the fit runs in your browser and nothing is uploaded. You get the six parameters, where each one falls
 within each clade, and any of these species overlaid by name. A "Reading the parameters" section shows, for each parameter,
 the evidence behind its interpretation (reference genomes and simulations). The page does not count *k*-mers itself;
