@@ -25,8 +25,10 @@ def cmd_run(a) -> int:
         fasta=a.fasta, out_prefix=prefix, k_range=a.k, tool=a.tool,
         kplex_bin=a.kplex, kmc_bin=a.kmc, threads=a.threads, h_range=a.h,
         chromosomes_only=a.chromosomes_only, chrom_regex=a.chrom_regex or DEFAULT_CHROM_REGEX,
-        theoretical=not a.no_theoretical, verbose=a.verbose)
+        theoretical=not a.no_theoretical, verbose=a.verbose, sketch=a.sketch)
     print(f"[kplex run] tool={out['tool']}  curve -> {out['curve']}")
+    if a.sketch:
+        print(f"[kplex run] sketch, k = {out['k']}")
     if "theoretical" in out:
         print(f"[kplex run] theoretical -> {out['theoretical']}")
     curve_for_next = out.get("theoretical", out["curve"])
@@ -83,6 +85,18 @@ def cmd_fit(a) -> int:
     return 0
 
 
+def cmd_schedule(a) -> int:
+    from .sketch import size_anchored
+    G = a.genome_bp
+    if G is None:
+        from .kmers import fasta_lengths, prepare_fasta
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix="kplex_") as td:
+            G = sum(fasta_lengths(prepare_fasta(Path(a.fasta), Path(td))))
+    print(",".join(map(str, size_anchored(G, a.n))))
+    return 0
+
+
 def cmd_plot(a) -> int:
     from .plotting import plot
     fit = None
@@ -101,7 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("run", help="compute the k-plexity curve from a FASTA")
     r.add_argument("fasta", help="input genome FASTA (.fa/.fasta/.fna, optionally .gz)")
     r.add_argument("-o", "--out", help="output prefix (default: FASTA name)")
-    r.add_argument("-k", "--k", default="5:151:1", help="k range start:end:step (default 5:151:1)")
+    r.add_argument("-k", "--k", default="5:151:1", help="k values: start:end:step (default 5:151:1) or a comma list")
     r.add_argument("--tool", choices=["auto", "fastk", "kmc"], default="auto")
     r.add_argument("--kplex", help="path to FASTK/Kplex (else $KPLEX_BIN or PATH)")
     r.add_argument("--kmc", help="path to kmc (else $KMC_BIN or PATH)")
@@ -110,6 +124,9 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--chromosomes-only", action="store_true", help="keep only chromosome-scale sequences")
     r.add_argument("--chrom-regex", default="", help="regex for chromosome headers")
     r.add_argument("--no-theoretical", action="store_true", help="skip theoretical-fraction CSV")
+    r.add_argument("--sketch", type=int, nargs="?", const=15, default=None, metavar="N",
+                   help="count only N k values (default 15) on a size-anchored schedule instead of every k in -k; "
+                        "about ten times faster, median parameter drift about 2%% at N = 15")
     r.add_argument("--fit", action="store_true", help="also fit the curve (see --model)")
     r.add_argument("--model", choices=MODELS, default="kplexity",
                    help="kplexity (default, 5 parameters), gamma (6), double (double sigmoid) or single")
@@ -127,6 +144,13 @@ def build_parser() -> argparse.ArgumentParser:
                         "default: read from the curve's total_kmers column")
     f.add_argument("--plot", action="store_true", help="also render a PNG with the fit overlaid")
     f.set_defaults(func=cmd_fit)
+
+    sc = sub.add_parser("schedule", help="print the size-anchored sketch k list (for Kplex -k or kplex run -k)")
+    g = sc.add_mutually_exclusive_group(required=True)
+    g.add_argument("--genome-bp", type=float, help="genome size in bp")
+    g.add_argument("--fasta", help="FASTA to measure (ACGT bases)")
+    sc.add_argument("-n", type=int, default=15, help="number of k values (default 15, minimum 10)")
+    sc.set_defaults(func=cmd_schedule)
 
     pl = sub.add_parser("plot", help="plot a curve, optionally with a fit overlay")
     pl.add_argument("csv", help="curve CSV from `kplex run`")

@@ -25,6 +25,9 @@ DEFAULT_CHROM_REGEX = r"(?i)chromosome|\bchr\b|\bLG\d|linkage group"
 
 # ----------------------------------------------------------------------------- helpers
 def parse_k_range(k_range: str) -> list[int]:
+    """'start:end:step' or an explicit comma list ('5,7,11,...')."""
+    if "," in k_range or ":" not in k_range:
+        return sorted({int(x) for x in k_range.split(",") if x.strip()})
     a, b, c = k_range.split(":")
     return list(range(int(a), int(b) + 1, int(c)))
 
@@ -189,8 +192,9 @@ def compute_curve(fasta: str, out_prefix: str, k_range: str = "5:151:1",
                   tool: str = "auto", kplex_bin: str | None = None, kmc_bin: str | None = None,
                   threads: int = 4, h_range: str = "1:10000000",
                   chromosomes_only: bool = False, chrom_regex: str = DEFAULT_CHROM_REGEX,
-                  theoretical: bool = True, verbose: bool = False) -> dict:
-    """Run k-plexity on one FASTA. Returns paths of the outputs produced."""
+                  theoretical: bool = True, verbose: bool = False, sketch: int | None = None) -> dict:
+    """Run k-plexity on one FASTA. Returns paths of the outputs produced.
+    sketch: count only this many k values (size-anchored schedule, kplex.sketch) instead of k_range."""
     fasta = Path(fasta)
     if not fasta.exists():
         raise SystemExit(f"FASTA not found: {fasta}")
@@ -208,16 +212,25 @@ def compute_curve(fasta: str, out_prefix: str, k_range: str = "5:151:1",
             if verbose:
                 print(f"  [chr] kept {stats['contigs_chr']}/{stats['contigs_all']} sequences, "
                       f"{stats['bases_chr']/1e6:.1f} Mb")
+        lengths = None
+        if sketch:
+            from .sketch import size_anchored
+            lengths = fasta_lengths(seq)
+            ks = parse_k_range(k_range)
+            k_list = size_anchored(sum(lengths), sketch, kmin=min(ks), kmax=max(ks))
+            k_range = ",".join(map(str, k_list))
+            if verbose:
+                print(f"  [sketch] {len(k_list)} k values for {sum(lengths) / 1e6:.1f} Mb: {k_range}")
         curve_csv = Path(f"{out_prefix}.kplex.csv")
         if tool == "fastk":
             _run_fastk(seq, binpath, k_range, h_range, threads, curve_csv, workdir, verbose)
         else:
             _run_kmc(seq, binpath, k_range, threads, curve_csv, workdir, verbose)
 
-        out = {"tool": tool, "curve": str(curve_csv)}
+        out = {"tool": tool, "curve": str(curve_csv), "k": k_range}
         if theoretical:
             k_values = parse_k_range(k_range)
-            t_theory = theoretical_totals(fasta_lengths(seq), k_values)
+            t_theory = theoretical_totals(lengths if lengths is not None else fasta_lengths(seq), k_values)
             theo_csv = Path(f"{out_prefix}.theoretical.csv")
             add_theoretical(curve_csv, theo_csv, t_theory)
             out["theoretical"] = str(theo_csv)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kplex"
-version = "0.2.0"
+version = "0.3.0"
 description = "k-plexity: fraction of unique k-mers vs k — a fast genome repeat-landscape QC tool"
 readme = "kplex/README.md"
 requires-python = ">=3.9"

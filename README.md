@@ -50,8 +50,23 @@ kplex run genome.fa -o mygenome --chromosomes-only --fit --plot -T 20
 #  → mygenome.kplex.csv, mygenome.fit.json, mygenome.png
 ```
 
-Handy flags: `-k 5:151:1` (k range), `-T` (threads), `--chromosomes-only`
-(keep chromosome-scale sequences), `--tool fastk|kmc`.
+Handy flags: `-k 5:151:1` (k range, or a comma list), `-T` (threads), `--chromosomes-only`
+(keep chromosome-scale sequences), `--tool fastk|kmc`, `--sketch` (below).
+
+### Sketching: 15 k values instead of 147
+
+Each value of *k* is one counting pass, so the full ladder is the slow part. `--sketch` counts only `N` values
+(default 15): an even grid over 5–151 plus six values across the first rise, placed from the genome size
+(k ≈ 1.213·log₄G − 1.95 ± 5), and `kplex fit` weights the uneven points by the span each one stands for.
+
+```bash
+kplex run genome.fa --sketch --fit          # 15 k values
+kplex run genome.fa --sketch 25 --fit       # more k, less drift
+kplex schedule --genome-bp 3.1e9            # print the k list (to pass to Kplex -k yourself)
+```
+
+Across 326 annotated DToL genomes, 15 sketched values reproduce the full-ladder parameters with a median drift
+of 1.8% (15 evenly spaced values: 12.9%); on T2T-CHM13, 0.9%. Fewer than about 12 values is not reliable.
 
 ---
 

@@ -7,6 +7,8 @@ import pytest
 
 from kplex import model as M
 from kplex.cli import main
+from kplex import sketch as SK
+from kplex.kmers import parse_k_range
 
 DATA = Path(__file__).parent / "data"
 K = np.arange(5, 152, dtype=float)
@@ -62,6 +64,38 @@ def test_sketched_curve_close_to_full():
     assert sk["weighted"]
     assert sk["A"] == pytest.approx(full["A"], abs=0.01)
     assert sk["S"] == pytest.approx(full["S"], abs=0.02)
+
+
+def test_size_anchored_schedule():
+    ks = SK.size_anchored(3.06e9, 15)                     # T2T-CHM13
+    assert ks == [5, 12, 14, 16, 18, 20, 22, 23, 42, 60, 78, 96, 114, 133, 151]
+    for G in (1e6, 1e8, 1e10):
+        for n in (10, 15, 25, 40):
+            ks = SK.size_anchored(G, n)
+            assert len(ks) == n and ks[0] == 5 and ks[-1] == 151 and ks == sorted(set(ks))
+    with pytest.raises(ValueError):
+        SK.size_anchored(1e8, 5)
+
+
+def test_size_anchored_sketch_recovers_full_fit():
+    csv = DATA / "chm13.kplex.csv"
+    k, y, _ = M.load_curve(str(csv))
+    G = M.genome_bp_from_csv(str(csv))
+    full = M.fit_kplexity(k, y, G)
+    sel = np.isin(k, SK.size_anchored(G, 15))
+    sk = M.fit_kplexity(k[sel], y[sel], G)
+    for p in ("A", "S", "k0", "b"):
+        assert sk[p] == pytest.approx(full[p], rel=0.03)
+
+
+def test_parse_k_list():
+    assert parse_k_range("5:11:3") == [5, 8, 11]
+    assert parse_k_range("5,12,14,151") == [5, 12, 14, 151]
+
+
+def test_cli_schedule(capsys):
+    assert main(["schedule", "--genome-bp", "3.06e9"]) == 0
+    assert capsys.readouterr().out.strip() == "5,12,14,16,18,20,22,23,42,60,78,96,114,133,151"
 
 
 @pytest.mark.parametrize("model, key", [("kplexity", "S"), ("gamma", "a"), ("double", "L2_fraction"),
