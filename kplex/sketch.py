@@ -7,7 +7,8 @@ Fits to sketched curves are weighted by k-spacing (kplex.model.spacing_weights),
 automatically for unevenly spaced k.
 
 Benchmark (326 annotated DToL genomes, kplexity model): with 15 k values the median combined drift of the
-fitted parameters from the full-ladder fit is 1.8% (12.9% for 15 evenly spaced k); T2T-CHM13, 0.9%.
+fitted parameters from the full-ladder fit is 1.8% (12.9% for 15 evenly spaced k). T2T-CHM13: 0.86% drift, 8 min
+wall time at 20 threads vs 54 min for the full ladder.
 Below about 12 k values the fit becomes unreliable.
 """
 from __future__ import annotations

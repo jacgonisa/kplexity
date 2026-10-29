@@ -66,7 +66,8 @@ kplex schedule --genome-bp 3.1e9            # print the k list (to pass to Kplex
 ```
 
 Across 326 annotated DToL genomes, 15 sketched values reproduce the full-ladder parameters with a median drift
-of 1.8% (15 evenly spaced values: 12.9%); on T2T-CHM13, 0.9%. Fewer than about 12 values is not reliable.
+of 1.8% (15 evenly spaced values: 12.9%). On T2T-CHM13 (3.1 Gb, 20 threads) the 15-value sketch took 8 min against
+54 min for all 147 values, and its fit drifts 0.9% from the full one. Fewer than about 12 values is not reliable.
 
 ---
 
