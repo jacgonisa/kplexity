@@ -64,13 +64,6 @@
 
   <section class="panel compare" aria-labelledby="h-compare">
     <h2 id="h-compare">2 · Compare with</h2>
-    <div class="row">
-      <label for="model-view">Model</label>
-      <select id="model-view">
-        <option value="kplexity" selected>kplexity model (A, S, divergence, k0, b)</option>
-        <option value="double">double sigmoid (earlier versions)</option>
-      </select>
-    </div>
     <p class="muted small">Pick the background(s) to superimpose your curve on.</p>
     <div id="clade-toggles" class="toggles"></div>
     <div class="row">
@@ -206,32 +199,13 @@
             reference genomes, by clade.</p></details></dd>
     </dl>
 
-    <details class="legacy">
-      <summary>The double sigmoid (earlier versions)</summary>
-      <p class="small">Earlier versions of the tool fitted
-        y = L1/(1 + e<sup>−s1(<i>k</i> − k0_1)</sup>) + L2/(1 + e<sup>−s2(<i>k</i> − k0_2)</sup>). It is still
-        available in the explorer (Model: double sigmoid), and the reference genomes carry both fits.</p>
-      <ul class="small">
-        <li><b>k0_1</b>: first transition, about log<sub>4</sub>(genome size); corresponds to k0.</li>
-        <li><b>s1</b>: steepness of the first transition; corresponds to b.</li>
-        <li><b>L2</b>: share of <i>k</i>-mers that become unique only at a second, later transition; tracks
-          transposable-element content, like S.</li>
-        <li><b>k0_2</b>, <b>s2</b>: position and steepness of the second transition; in simulation k0_2 falls as copies
-          diverge. They describe the shape of the curve rather than a measured quantity.</li>
-        <li><b>L1</b>: share that becomes unique at the first transition.</li>
-        <li><b>asymptote = L1 + L2</b>: fraction unique at the longest <i>k</i>; 1 − asymptote corresponds to 1 − A.</li>
-      </ul>
-      <p class="small">A curve was called double when the uniqueness gained after <i>k</i> = 25 was at least 0.05 and
-        k0_2/k0_1 ≥ 2, single when neither held; with no distinct second transition L2, s2 and k0_2 have no meaning.
-        The kplexity model has no such case: S simply goes to zero.</p>
-    </details>
   </section>
 </main>
 
 <footer>
   <p>Background: <span id="ref-n"></span> chromosome-level Darwin Tree of Life genomes with repeat annotation
     (the genome set analysed in the paper; its three protists are not shown), exact <i>k</i>-mer totals (N-free),
-    fitted with the same kplexity model (and, for the double-sigmoid view, the double sigmoid). A few curves stop between <i>k</i> = 142 and 150.</p>
+    fitted with the same kplexity model. A few curves stop between <i>k</i> = 142 and 150.</p>
 </footer>
 
 <script type="module" src="app.js"></script>

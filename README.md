@@ -98,7 +98,6 @@ Three things make a *k*-mer non-unique, and each has a term:
 ```bash
 kplex fit curve.csv                   # the model above (default)
 kplex fit curve.csv --model gamma     # + one parameter a: divergence varies across copies
-kplex fit curve.csv --model double    # double sigmoid (L1, s1, k0_1, L2, s2, k0_2), as in earlier versions
 ```
 
 `kplex fit` writes the parameters to a `.fit.json` with `R²`, `RMSE` and `AICc`. It reads the genome size
@@ -107,9 +106,9 @@ still open at the largest *k* (very homogeneous repeats), `A` is an extrapolatio
 (`"plateau_reached": false`).
 
 **Why the near-copy term.** A model with chance collisions and a plateau only (`B(k) · A`, three parameters)
-leaves a systematic residual of exactly the shape `S · e^(−λk)`; adding the term lowers the error in every
-eukaryotic genome tested, by an amount that grows with `S`, and predicts the curve beyond the fitted range
-better than the double sigmoid.
+leaves a systematic residual of exactly the shape `S · e^(−λk)`. Adding the term lowers the error in all 323 DToL
+genomes tested (median 12-fold, by an amount that grows with `S`; lower AICc in every one) and predicts the curve
+beyond the fitted range better in every one.
 
 ---
 

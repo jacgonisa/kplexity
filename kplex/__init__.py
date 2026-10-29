@@ -2,7 +2,7 @@
 
 Three commands:
   kplex run   FASTA -> k-plexity curve CSV (via FASTK/Kplex or KMC)
-  kplex fit   curve CSV -> model parameters (A, S, lam/divergence, k0, b; or the double sigmoid)
+  kplex fit   curve CSV -> model parameters (A, S, lam/divergence, k0, b)
   kplex plot  curve CSV (+ optional fit) -> figure
 """
-__version__ = "0.3.0"
+__version__ = "0.4.0"

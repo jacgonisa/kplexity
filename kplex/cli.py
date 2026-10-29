@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import __version__
 
-MODELS = ["kplexity", "gamma", "double", "single"]
+MODELS = ["kplexity", "gamma"]
 
 
 def _default_prefix(fasta: str) -> str:
@@ -59,11 +59,6 @@ def _summary(tag: str, fit: dict) -> None:
         if not fit["plateau_reached"]:
             print(f"  warning: the near-copy gap is still {fit['gap_at_kmax']:.3f} at the largest k, so A (and 1-A) "
                   "is an extrapolation; extend k or read y at the largest k instead", file=sys.stderr)
-    elif fit["model"] == "double_sigmoid":
-        print(f"  asymptote(L1+L2)={fit['asymptote']:.3f}  L2/(L1+L2)={fit['L2_fraction']:.3f}  "
-              f"k0_1={fit['k0_1']:.1f}  k0_2={fit['k0_2']:.1f}")
-    else:
-        print(f"  L={fit['L']:.3f}  s={fit['s']:.3f}  k0={fit['k0']:.1f}")
 
 
 def cmd_fit(a) -> int:
@@ -129,7 +124,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "about ten times faster, median parameter drift about 2%% at N = 15")
     r.add_argument("--fit", action="store_true", help="also fit the curve (see --model)")
     r.add_argument("--model", choices=MODELS, default="kplexity",
-                   help="kplexity (default, 5 parameters), gamma (6), double (double sigmoid) or single")
+                   help="kplexity (default, 5 parameters) or gamma (6: divergence varies across copies)")
     r.add_argument("--plot", action="store_true", help="also render a PNG (implies --fit)")
     r.add_argument("-v", "--verbose", action="store_true")
     r.set_defaults(func=cmd_run)
@@ -138,7 +133,7 @@ def build_parser() -> argparse.ArgumentParser:
     f.add_argument("csv", help="curve CSV from `kplex run` (.kplex.csv or .theoretical.csv)")
     f.add_argument("-o", "--out", help="output prefix (default: CSV name)")
     f.add_argument("--model", choices=MODELS, default="kplexity",
-                   help="kplexity (default, 5 parameters), gamma (6), double (double sigmoid) or single")
+                   help="kplexity (default, 5 parameters) or gamma (6: divergence varies across copies)")
     f.add_argument("--genome-bp", type=float, default=None,
                    help="k-mer positions (about the assembly size) to seed k0 at log4(G); "
                         "default: read from the curve's total_kmers column")

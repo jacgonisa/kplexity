@@ -26,7 +26,7 @@ kplex run genome.fa -o mygenome --chromosomes-only -T 20
 #   -> mygenome.kplex.csv , mygenome.theoretical.csv
 #   add --fit --plot to also fit + render in one go
 
-# 2) fit the curve (default: the kplexity model; --model gamma | double | single)
+# 2) fit the curve (the kplexity model; --model gamma adds one parameter)
 kplex fit mygenome.theoretical.csv -o mygenome
 #   -> mygenome.fit.json  (A, identical = 1-A, S, lam, divergence, k0, b, R², RMSE, AICc)
 
@@ -45,5 +45,4 @@ adding `fraction_unique_theoretical`, the length-based denominator, plus a trunc
 - **S** — near-copy share at k0 (k-mers in diverged repeat copies)
 - **lam**, **divergence** = 1 − e^(−lam) — how fast and how diverged those copies are
 - **k0** ≈ log4(genome size), **b** — position and steepness of the first rise (random sequence: b = ln 4)
-- `--model gamma` adds **a** (spread of divergence across copies); `--model double` gives the double
-  sigmoid of earlier versions (L1, s1, k0_1, L2, s2, k0_2, asymptote, L2_fraction)
+- `--model gamma` adds **a** (spread of divergence across copies)

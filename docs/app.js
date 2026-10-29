@@ -1,4 +1,4 @@
-import { fitDoubleSigmoid, fitSingleSigmoid, doubleSigmoid, PARAMS, fitKplexity, kplexityCurve, firstRise } from "./fit.js";
+import { fitKplexity, kplexityCurve, firstRise } from "./fit.js";
 import { fillStats, renderEvidence } from "./evidence.js";
 
 const COLORS = { Viridiplantae: "#228833", Vertebrates: "#4477AA", Invertebrates: "#CC6677", Fungi: "#AA4499" };
@@ -8,10 +8,9 @@ const $ = id => document.getElementById(id);
 const dark = () => document.documentElement.dataset.theme === "dark";
 const bgColor = () => (dark() ? "#1d2126" : "#ffffff");
 const opacity = () => $("opacity").value / 100;      // background (clade) opacity, 0-1
-const view = () => ($("model-view").value === "double" ? "double" : "kplexity");   // which model is shown
 
 let REF = null;              // reference data
-let USER = null;             // {name, k, y, fit, single}
+let USER = null;             // {name, k, y, G, kp}
 const shownClades = new Set(["Viridiplantae", "Vertebrates"]);
 const shownSpecies = [];
 
@@ -57,10 +56,10 @@ function loadText(text, name) {
     const { k, y, G } = parseCurve(text);
     setStatus(`Fitting ${k.length} points…`);
     setTimeout(() => {
-      const kp = fitKplexity(k, y, G), fit = fitDoubleSigmoid(k, y), single = fitSingleSigmoid(k, y);
+      const kp = fitKplexity(k, y, G);
       if (!kp) { setStatus("The kplexity-model fit failed on this curve.", true); return; }
       kp.identical = 1 - kp.A; kp.div_pct = 100 * kp.divergence;
-      USER = { name, k, y, G, kp, fit, single, model: fit ? modelCall(k, y, fit) : null };
+      USER = { name, k, y, G, kp };
       const warn = (k[0] > 5 || k[k.length - 1] < 151) ? ` (k = ${k[0]}–${k[k.length - 1]}; the reference uses 5–151)` : "";
       const wnote = kp.weighted ? "; uneven k, so each point is weighted by the k-span it covers" : "";
       setStatus(`${name}: ${k.length} points, R² = ${kp.R2.toFixed(4)} (kplexity model)${warn}${wnote}`);
@@ -70,16 +69,6 @@ function loadText(text, name) {
   } catch (e) {
     setStatus(`Could not read the curve: ${e.message}`, true);
   }
-}
-
-// single vs double: the paper's two criteria (Supp. S1), late gain after k = 25 >= 0.05 and k0_2/k0_1 >= 2
-function modelCall(k, y, fit) {
-  const at = kk => { const i = k.findIndex(x => x >= kk);
-    if (i <= 0) return y[Math.max(i, 0)];
-    const t = (kk - k[i - 1]) / (k[i] - k[i - 1]); return y[i - 1] + t * (y[i] - y[i - 1]); };
-  const late = y[y.length - 1] - at(25), ratio = fit.k0_2 / fit.k0_1;
-  const call = late >= 0.05 && ratio >= 2 ? "double" : late < 0.05 && ratio < 2 ? "single" : "borderline";
-  return { call, late, ratio };
 }
 
 // ---------------------------------------------------------------- plot
@@ -112,7 +101,7 @@ function plotTraces() {
   const kk = Array.from({ length: 400 }, (_, i) => 5 + i * 146 / 399);
   const dataTrace = () => ({ x: USER.k, y: USER.y, mode: "markers", marker: { size: 5, color: dark() ? "#e6e6e1" : "#1f2328" },
                              name: `${USER.name} (data)`, hovertemplate: "k=%{x}: %{y:.4f}<extra></extra>" });
-  if (USER && view() === "kplexity") {
+  if (USER) {
     const f = USER.kp, fitCol = dark() ? "#ffffff" : "#000000";
     if ($("show-components").checked) {
       // chance-collision curve B(k) A (dashed); the shaded gap down to the fit is the near-copy term
@@ -125,17 +114,6 @@ function plotTraces() {
     tr.push(dataTrace());
     tr.push({ x: kk, y: kk.map(x => kplexityCurve(x, f)), mode: "lines", line: { color: fitCol, width: 2.6 },
               name: "kplexity-model fit", hovertemplate: "fit<br>k=%{x:.1f}: %{y:.4f}<extra></extra>" });
-  } else if (USER && USER.fit) {
-    const f = USER.fit;
-    tr.push(dataTrace());
-    tr.push({ x: kk, y: kk.map(x => doubleSigmoid(x, f.p)), mode: "lines",
-              line: { color: dark() ? "#ffffff" : "#000000", width: 2.6 }, name: "double-sigmoid fit" });
-    if ($("show-components").checked && USER.model.call !== "single") {
-      tr.push({ x: kk, y: kk.map(x => f.L1 / (1 + Math.exp(-f.s1 * (x - f.k0_1)))), mode: "lines",
-                line: { color: "#888", width: 1.4, dash: "dash" }, name: `component 1 (L1 = ${f.L1.toFixed(3)})` });
-      tr.push({ x: kk, y: kk.map(x => f.L2 / (1 + Math.exp(-f.s2 * (x - f.k0_2)))), mode: "lines",
-                line: { color: "#d1495b", width: 1.6, dash: "dash" }, name: `component 2 (L2 = ${f.L2.toFixed(3)})` });
-    }
   }
   return tr;
 }
@@ -144,7 +122,7 @@ function layout() {
   const ink = dark() ? "#e6e6e1" : "#1f2328", grid = dark() ? "#2e343b" : "#ececE6";
   const shapes = [], ann = [];
   let labelled = false;
-  if (USER && view() === "kplexity") {
+  if (USER) {
     const f = USER.kp;
     shapes.push({ type: "line", x0: f.k0, x1: f.k0, y0: 0, y1: 1, yref: "paper", line: { color: "#999", width: 1, dash: "dot" } });
     ann.push({ x: f.k0, y: 1, yref: "paper", text: `k0 = ${f.k0.toFixed(1)}`, showarrow: false, yanchor: "bottom",
@@ -155,30 +133,11 @@ function layout() {
                  font: { size: 11, color: ink } });
       labelled = true;
     }
-  } else if (USER && USER.fit) {
-    const keys = USER.model.call === "single" ? [["k0_1", "k0_1"]] : [["k0_1", "k0_1"], ["k0_2", "k0_2"]];
-    for (const [key, lab] of keys) {
-      shapes.push({ type: "line", x0: USER.fit[key], x1: USER.fit[key], y0: 0, y1: 1, yref: "paper",
-                    line: { color: "#999", width: 1, dash: "dot" } });
-      ann.push({ x: USER.fit[key], y: 1, yref: "paper", text: `${lab} = ${USER.fit[key].toFixed(1)}`,
-                 showarrow: false, yanchor: "bottom", font: { size: 11, color: "#888" } });
-    }
-    if ($("show-components").checked) {         // plateaus: L1, L2 and the asymptote L1 + L2, labelled on the right
-      const f = USER.fit;
-      const lines = USER.model.call === "single" ? [[f.asymptote, "asymptote", ink]]
-        : [[f.L1, "L1", "#888"], [f.L2, "L2", "#d1495b"], [f.asymptote, "L1+L2 (asymptote)", ink]];
-      for (const [v, lab, col] of lines) {
-        shapes.push({ type: "line", x0: 0, x1: 155, y0: v, y1: v, line: { color: col, width: 1, dash: "dot" } });
-        ann.push({ x: 1, xref: "paper", y: v, xanchor: "left", text: `${lab} = ${v.toFixed(3)}`, showarrow: false,
-                   font: { size: 11, color: col } });
-      }
-      labelled = true;
-    }
   }
   return {
     font: { family: "Arial, Helvetica, sans-serif", color: ink, size: 13 },
     paper_bgcolor: bgColor(), plot_bgcolor: bgColor(),
-    margin: { l: 58, r: labelled ? (view() === "kplexity" ? 80 : 150) : 12, t: 30, b: 50 },
+    margin: { l: 58, r: labelled ? 80 : 12, t: 30, b: 50 },
     xaxis: { title: "k", range: [0, 155], gridcolor: grid, zeroline: false },
     yaxis: { title: "fraction of unique k-mers", range: [0, 1.02], gridcolor: grid, zeroline: false },
     legend: { orientation: "h", y: -0.18, font: { size: 11 } },
@@ -188,10 +147,6 @@ function layout() {
 
 // ---------------------------------------------------------------- results
 const fmt = (v, d = 3) => (Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(d));
-const ROWS = [
-  ["L1", "L1", 3], ["s1", "s1", 3], ["k0_1", "k0_1", 2], ["L2", "L2", 3], ["s2", "s2", 3], ["k0_2", "k0_2", 2],
-  ["asymptote", "asym", 3], ["L2/(L1+L2)", "frac", 3],
-];
 // kplexity model: [label, key (same on USER.kp and the reference species), decimals, tooltip]
 const KP_ROWS = [
   ["A", "A", 3, "resolvable fraction: the plateau"],
@@ -201,8 +156,7 @@ const KP_ROWS = [
   ["k0", "k0", 2, "first-rise position, about log4(genome size)"],
   ["b", "b", 3, "steepness of the first rise; ln 4 = 1.386 for random sequence"],
 ];
-const userVal = key => (view() === "kplexity" ? USER.kp[key]
-  : ({ asym: USER.fit.asymptote, frac: USER.fit.L2_frac }[key] ?? USER.fit[key]));
+const userVal = key => USER.kp[key];
 
 function percentile(vals, v) {
   let below = 0;
@@ -243,42 +197,15 @@ function renderResults() {
   if (!USER) return;
   const clades = Object.keys(COLORS).filter(c => shownClades.has(c));
   const byClade = Object.fromEntries(clades.map(c => [c, REF.species.filter(s => s.clade === c)]));
-  if (view() === "kplexity") { $("results").innerHTML = renderResultsKplexity(clades, byClade); return; }
-  if (!USER.fit) { $("results").innerHTML = `<p class="muted">The double-sigmoid fit failed on this curve.</p>`; return; }
-  let h = `<p class="muted small">Columns after the value: percentile of your genome within each clade.</p>` +
-          `<div class="table-wrap"><table><tr><th>parameter</th><th>value</th>` +
-          clades.map(c => `<th title="percentile within ${c} (0 = lowest, 100 = highest)"><span class="swatch" style="display:inline-block;background:${COLORS[c]}"></span> ${SHORT[c]}</th>`).join("") + `</tr>`;
-  for (const [lab, key, d] of ROWS) {
-    const v = userVal(key);
-    const na = USER.model.call === "single" && ["L2", "s2", "k0_2", "frac"].includes(key);
-    h += `<tr${na ? ' class="na" title="no distinct second transition: not meaningful"' : ""}><td>${lab}</td><td><b>${fmt(v, d)}</b></td>` +
-         clades.map(c => `<td>${percentile(byClade[c].map(s => s[key]), v)}</td>`).join("") + `</tr>`;
-  }
-  h += `</table></div>`;
-  // single vs double: the paper's two criteria (Supp. S1). AICc is shown but not used, because it favours the
-  // double sigmoid on almost every real curve (the single sigmoid's shape is too rigid), prokaryotes included.
-  const f = USER.fit, kmax = USER.k[USER.k.length - 1], { call, late, ratio } = USER.model;
-  const lateOk = late >= 0.05, ratioOk = ratio >= 2;
-  const dA = USER.single.AICc - f.AICc;
-  h += `<p class="model">R² = ${f.R2.toFixed(4)} · RMSE = ${f.RMSE.toExponential(2)}</p>` +
-       `<p class="model"><b>${call === "double" ? "Double sigmoid" : call === "single" ? "Single sigmoid" : "Borderline"}</b>: ` +
-       (call === "double" ? "a distinct second transition, from repeats with similar but not identical copies."
-        : call === "single" ? "no distinct second transition, as in most prokaryotes. Read L2, s2 and k0_2 as not meaningful."
-        : "only one of the two criteria is met; interpret L2, s2 and k0_2 with care.") +
-       `<br><span class="muted small">Uniqueness gained after k = 25: ${late.toFixed(3)} (${lateOk ? "≥" : "<"} 0.05) · ` +
-       `k0_2 / k0_1 = ${ratio.toFixed(2)} (${ratioOk ? "≥" : "<"} 2). Double needs both, single neither.` +
-       (kmax < 100 ? ` Your curve stops at k = ${kmax}, so the late gain is underestimated.` : "") +
-       ` ΔAICc (single − double) = ${dA.toFixed(1)}, for information only: AICc prefers two sigmoids on almost any real curve.</span></p>`;
-  $("results").innerHTML = h;
+  $("results").innerHTML = renderResultsKplexity(clades, byClade);
 }
 
 function renderStrips() {
   const box = $("strips");
   box.innerHTML = "";
   const clades = Object.keys(COLORS).filter(c => shownClades.has(c));
-  const strips = view() === "kplexity"
-    ? [["A (resolvable fraction)", "A"], ["S (near-copy share at k0)", "S"], ["divergence (%)", "div_pct"], ["k0", "k0"]]
-    : [["asymptote (L1+L2)", "asym"], ["L2", "L2"], ["k0_2", "k0_2"], ["k0_1", "k0_1"]];
+  const strips = [["A (resolvable fraction)", "A"], ["S (near-copy share at k0)", "S"], ["divergence (%)", "div_pct"],
+                  ["k0", "k0"]];
   for (const [lab, key] of strips) {
     const div = document.createElement("div"); div.className = "strip"; box.appendChild(div);
     const tr = clades.map((c, i) => {
@@ -296,7 +223,7 @@ function renderStrips() {
         shapes.push({ type: "line", x0: x, x1: x, y0: i - 0.45, y1: i + 0.45,
                       line: { color: hexA(COLORS[c], 0.8), width: 2.5, dash } });
     });
-    if (USER && (view() === "kplexity" || USER.fit)) shapes.push({ type: "line", x0: userVal(key), x1: userVal(key), y0: 0, y1: 1, yref: "paper",
+    if (USER) shapes.push({ type: "line", x0: userVal(key), x1: userVal(key), y0: 0, y1: 1, yref: "paper",
                             line: { color: dark() ? "#fff" : "#000", width: 2.5 } });
     const ink = dark() ? "#e6e6e1" : "#1f2328";
     Plotly.newPlot(div, tr, {
@@ -311,9 +238,6 @@ function renderStrips() {
 }
 
 function render() {
-  $("components-label").textContent = view() === "kplexity"
-    ? "show the chance-collision curve B·A, the near-copy gap and A"
-    : "show the two sigmoid components, L1, L2 and the asymptote";
   Plotly.react("plot", plotTraces(), layout(), { responsive: true, displaylogo: false });
   renderResults();
   renderStrips();
@@ -337,7 +261,6 @@ function buildControls() {
   $("ref-n").textContent = REF.species.length.toLocaleString();
   $("bands").addEventListener("change", render);
   $("show-components").addEventListener("change", render);
-  $("model-view").addEventListener("change", render);
   const addSpecies = () => {
     const name = $("species").value.trim(), s = REF.species.find(x => x.name.toLowerCase() === name.toLowerCase());
     if (!s || shownSpecies.includes(s)) return;
@@ -390,19 +313,12 @@ function renderChips() {
 }
 
 function downloadCsv() {
-  if (view() === "kplexity") {
-    const f = USER.kp;
-    const rows = [["parameter", "value"], ["model", "kplexity"], ["A", f.A], ["identical_1_minus_A", f.identical],
-                  ["S", f.S], ["lam", f.lam], ["divergence", f.divergence], ["k0", f.k0], ["b", f.b], ["R", f.R],
-                  ["gap_at_kmax", f.gap_at_kmax], ["plateau_reached", f.plateau_reached], ["R2", f.R2], ["RMSE", f.RMSE],
-                  ["AICc", f.AICc], ["genome_bp", f.G ?? ""], ["n_points", USER.k.length], ["weighted", f.weighted]];
-    return saveCsv(rows, `${USER.name}_kplexity_model_fit.csv`);
-  }
-  const f = USER.fit;
-  const rows = [["parameter", "value"], ["model", "double_sigmoid"], ...PARAMS.map(p => [p, f[p]]), ["asymptote", f.asymptote],
-                ["L2_over_L1_plus_L2", f.L2_frac], ["R2", f.R2], ["RMSE", f.RMSE], ["AICc_double", f.AICc],
-                ["AICc_single", USER.single.AICc]];
-  saveCsv(rows, `${USER.name}_double_sigmoid_fit.csv`);
+  const f = USER.kp;
+  const rows = [["parameter", "value"], ["model", "kplexity"], ["A", f.A], ["identical_1_minus_A", f.identical],
+                ["S", f.S], ["lam", f.lam], ["divergence", f.divergence], ["k0", f.k0], ["b", f.b], ["R", f.R],
+                ["gap_at_kmax", f.gap_at_kmax], ["plateau_reached", f.plateau_reached], ["R2", f.R2], ["RMSE", f.RMSE],
+                ["AICc", f.AICc], ["genome_bp", f.G ?? ""], ["n_points", USER.k.length], ["weighted", f.weighted]];
+  saveCsv(rows, `${USER.name}_kplexity_model_fit.csv`);
 }
 
 function saveCsv(rows, filename) {
@@ -436,8 +352,6 @@ fetch("data/dtol_reference.json")
   .then(ref => {
     REF = ref;
     for (const s of REF.species) { s.identical = 1 - s.A; s.div_pct = 100 * s.divergence; }
-    const q0 = new URLSearchParams(location.search);
-    if (q0.get("model") === "double") $("model-view").value = "double";
     buildControls(); fillStats(REF);
     document.querySelectorAll(".guide details").forEach(d => d.addEventListener("toggle", () => {
       if (d.open) renderEvidence(d, evCtx());

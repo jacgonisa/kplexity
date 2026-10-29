@@ -98,8 +98,7 @@ def test_cli_schedule(capsys):
     assert capsys.readouterr().out.strip() == "5,12,14,16,18,20,22,23,42,60,78,96,114,133,151"
 
 
-@pytest.mark.parametrize("model, key", [("kplexity", "S"), ("gamma", "a"), ("double", "L2_fraction"),
-                                        ("single", "L")])
+@pytest.mark.parametrize("model, key", [("kplexity", "S"), ("gamma", "a")])
 def test_cli_fit_writes_json(tmp_path, model, key):
     out = tmp_path / "t"
     assert main(["fit", str(DATA / "tair12.kplex.csv"), "--model", model, "-o", str(out), "--plot"]) == 0

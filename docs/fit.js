@@ -1,39 +1,8 @@
 // k-plexity curve fitting in the browser (and in node, for tests).
-// kplexity model (default)  y = B(k) [A - S e^(-lam (k - k0))],  B = (1 - e^-L)/L,  L = 2 e^(-b (k - k0))
+// kplexity model  y = B(k) [A - S e^(-lam (k - k0))],  B = (1 - e^-L)/L,  L = 2 e^(-b (k - k0))
 //   fitted as in kplex/model.py (fit_kplexity): internal form y = B A (1 - R e^(-lam k)), same bounds and 14 starts
 //   (8 grid + the same 6 random starts), checked against it by test/fit_check_kplexity.mjs.
-// Double sigmoid  y = L1/(1+e^(-s1(k-k0_1))) + L2/(1+e^(-s2(k-k0_2)))  and a single sigmoid, fitted by
-// bounded Levenberg-Marquardt from several starts — same starts, bounds and constraints as the fitter used for the
-// DToL reference curves (checked against it by test/fit_check.mjs). Unevenly spaced k are weighted by k-span.
-
-export const PARAMS = ["L1", "s1", "k0_1", "L2", "s2", "k0_2"];
-
-const sig = (x, s, k0) => 1 / (1 + Math.exp(-s * (x - k0)));
-
-export function doubleSigmoid(x, p) {
-  return p[0] * sig(x, p[1], p[2]) + p[3] * sig(x, p[4], p[5]);
-}
-export function singleSigmoid(x, p) {
-  return p[0] * sig(x, p[1], p[2]);
-}
-
-// analytic Jacobian rows for a sum of sigmoids; p = [L, s, k0, L, s, k0, ...]
-function jacRow(x, p) {
-  const row = new Array(p.length);
-  for (let j = 0; j < p.length; j += 3) {
-    const [L, s, k0] = [p[j], p[j + 1], p[j + 2]];
-    const g = sig(x, s, k0), d = g * (1 - g);
-    row[j] = g;
-    row[j + 1] = L * d * (x - k0);
-    row[j + 2] = -L * d * s;
-  }
-  return row;
-}
-function model(x, p) {
-  let y = 0;
-  for (let j = 0; j < p.length; j += 3) y += p[j] * sig(x, p[j + 1], p[j + 2]);
-  return y;
-}
+// Fitted by bounded Levenberg-Marquardt; unevenly spaced (sketched) k are weighted by the k-span each point covers.
 
 function solve(A, b) {                       // Gaussian elimination with partial pivoting
   const n = b.length, M = A.map((r, i) => [...r, b[i]]);
@@ -58,7 +27,7 @@ function solve(A, b) {                       // Gaussian elimination with partia
 
 const clip = (p, lo, hi) => p.map((v, i) => Math.min(hi[i], Math.max(lo[i], v)));
 
-function rss(x, y, p, w, f = model) {
+function rss(x, y, p, w, f) {
   let s = 0;
   for (let i = 0; i < x.length; i++) { const r = y[i] - f(x[i], p); s += w[i] * r * r; }
   return s;
@@ -85,11 +54,11 @@ export function numericJac(fn, rel = 1e-6) {
 }
 
 // bounded LM: steps are projected onto the box; lambda adapts on accept/reject.
-// opts.f(x, p) is the model and opts.jac(x, p) its Jacobian row (default: the sum of sigmoids, analytic);
+// opts.f(x, p) is the model and opts.jac(x, p) its Jacobian row (default: numeric, central differences);
 // opts.freeze: parameters sitting on a bound whose gradient points out of the box are held fixed for that step
 // (an active set, so a fit that ends on a bound, e.g. A = 1, converges instead of stalling on clipped steps).
 export function levenbergMarquardt(x, y, p0, lo, hi, w = null, maxIter = 2000, opts = {}) {
-  const fm = opts.f || model, jac = opts.jac || jacRow, freeze = !!opts.freeze;
+  const fm = opts.f, jac = opts.jac || numericJac(fm), freeze = !!opts.freeze;
   w = w || x.map(() => 1);
   let p = clip(p0, lo, hi), f = rss(x, y, p, w, fm), lambda = 1e-3;
   const n = p.length;
@@ -132,72 +101,12 @@ export function levenbergMarquardt(x, y, p0, lo, hi, w = null, maxIter = 2000, o
   return { p, rss: f };
 }
 
-// deterministic PRNG (mulberry32)
-function rng(seed) {
-  return () => {
-    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-const uni = (r, a, b) => a + (b - a) * r();
-
 function stats(x, y, f, p, k) {
   const n = x.length;
   let rs = 0, mean = y.reduce((a, b) => a + b, 0) / n, tss = 0;
   for (let i = 0; i < n; i++) { const r = y[i] - f(x[i], p); rs += r * r; tss += (y[i] - mean) ** 2; }
   const aicc = n * Math.log(rs / n) + 2 * k + (2 * k * (k + 1)) / Math.max(n - k - 1, 1);
   return { rss: rs, R2: 1 - rs / tss, AICc: aicc, RMSE: Math.sqrt(rs / n) };
-}
-
-export function fitDoubleSigmoid(x, y, nStarts = 10, weights = undefined) {
-  const w = weights === undefined ? (isUneven(x) ? spacingWeights(x) : null) : weights;
-  const xmin = Math.min(...x), xmax = Math.max(...x), xr = xmax - xmin, ymax = Math.max(...y);
-  const lo = [0.05, 0.005, xmin, 0.05, 0.005, xmin], hi = [0.95, 5.0, xmax, 0.95, 5.0, xmax];
-  const r = rng(42);
-  let best = null;
-  for (let i = 0; i < nStarts; i++) {
-    let p0;
-    if (i === 0) {
-      const i1 = y.findIndex(v => v > 0.3 * ymax), i2 = y.findIndex(v => v > 0.8 * ymax);
-      p0 = [ymax * 0.55, 0.3, i1 >= 0 ? x[i1] : xmin + xr * 0.33,
-            ymax * 0.40, 0.1, i2 >= 0 ? x[i2] : xmin + xr * 0.67];
-    } else {
-      const L1 = uni(r, 0.1, 0.7), L2 = uni(r, 0.1, Math.min(0.7, 1 - L1));
-      p0 = [L1, uni(r, 0.05, 1), uni(r, xmin, xmin + 0.6 * xr), L2, uni(r, 0.05, 1), uni(r, xmin + 0.4 * xr, xmax)];
-    }
-    const res = levenbergMarquardt(x, y, p0, lo, hi, w);
-    if (res.p[0] + res.p[3] > 1.05) continue;
-    if (!best || res.rss < best.rss) best = res;
-  }
-  if (!best) return null;
-  let p = best.p;
-  if (p[2] > p[5]) p = [p[3], p[4], p[5], p[0], p[1], p[2]];          // identifiability: k0_1 < k0_2
-  const out = Object.fromEntries(PARAMS.map((n, i) => [n, p[i]]));
-  out.p = p;
-  out.asymptote = p[0] + p[3];
-  out.L2_frac = p[3] / (p[0] + p[3]);
-  out.weighted = !!w;
-  Object.assign(out, stats(x, y, doubleSigmoid, p, 6));
-  return out;
-}
-
-export function fitSingleSigmoid(x, y, nStarts = 6) {
-  const w = isUneven(x) ? spacingWeights(x) : null;
-  const xmin = Math.min(...x), xmax = Math.max(...x), ymax = Math.max(...y);
-  const lo = [0.01, 0.005, xmin], hi = [1.0, 5.0, xmax];
-  const r = rng(7);
-  let best = null;
-  for (let i = 0; i < nStarts; i++) {
-    const i1 = y.findIndex(v => v > 0.5 * ymax);
-    const p0 = i === 0 ? [ymax, 0.3, i1 >= 0 ? x[i1] : (xmin + xmax) / 2]
-                       : [uni(r, 0.3, 1), uni(r, 0.05, 1), uni(r, xmin, xmin + 0.6 * (xmax - xmin))];
-    const res = levenbergMarquardt(x, y, p0, lo, hi, w);
-    if (!best || res.rss < best.rss) best = res;
-  }
-  const p = best.p;
-  return { L: p[0], s: p[1], k0: p[2], p, ...stats(x, y, singleSigmoid, p, 3) };
 }
 
 // ---------------------------------------------------------------------------------------------- kplexity model

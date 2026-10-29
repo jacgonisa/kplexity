@@ -83,7 +83,6 @@ table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
 th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 th:first-child, td:first-child { text-align: left; }
 th { color: var(--muted); font-weight: normal; }
-tr.na td { color: var(--muted); opacity: 0.55; }
 .model { margin: 10px 0; font-size: 0.9rem; }
 .buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .strips { display: grid; gap: 4px; }
@@ -99,5 +98,3 @@ tr.na td { color: var(--muted); opacity: 0.55; }
 footer { color: var(--muted); font-size: 0.85rem; padding-block: 8px 30px; }
 .model.warn { border-left: 3px solid #d08c00; padding-left: 8px; }
 .model-eq { font-size: 0.95rem; margin: 8px 0; overflow-x: auto; }
-details.legacy { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 10px; }
-details.legacy ul { padding-left: 20px; }

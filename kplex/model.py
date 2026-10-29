@@ -16,23 +16,11 @@ kplexity model (5 parameters):
 A k-mer in a repeat copy becomes distinct once it spans a difference from the other copies, with probability
 1 - (1 - divergence)^k; this gives the exponential. The gamma variant (`--model gamma`, one more parameter a)
 lets the divergence vary across copies: exp(-lam (k - k0)) -> ((1 + lam k / a) / (1 + lam k0 / a))^-a.
-
-The double sigmoid (`--model double`) of earlier versions is kept:
-    y(k) = L1/(1+exp(-s1*(k-k0_1))) + L2/(1+exp(-s2*(k-k0_2)))
 """
 from __future__ import annotations
 import numpy as np
 import pandas as pd
-from scipy.optimize import curve_fit, least_squares
-
-
-def single_sigmoid(x, L, s, k0):
-    return L / (1.0 + np.exp(-s * (x - k0)))
-
-
-def double_sigmoid(x, L1, s1, k0_1, L2, s2, k0_2):
-    return (L1 / (1.0 + np.exp(-s1 * (x - k0_1)))
-            + L2 / (1.0 + np.exp(-s2 * (x - k0_2))))
+from scipy.optimize import least_squares
 
 
 def load_curve(csv_path: str) -> tuple[np.ndarray, np.ndarray, str]:
@@ -68,80 +56,6 @@ def spacing_weights(x: np.ndarray) -> np.ndarray:
     w[0] += 0.5
     w[-1] += 0.5
     return w
-
-
-def fit_double_sigmoid(x: np.ndarray, y: np.ndarray, n_starts: int = 12) -> dict:
-    """Multi-start bounded fit. Enforces L1+L2<=1 region and k0_1<k0_2 (post-hoc).
-    Unevenly spaced k are weighted by spacing_weights()."""
-    uneven = len(x) > 2 and np.ptp(np.diff(x)) > 0
-    w = spacing_weights(x) if uneven else np.ones(len(x))
-    sigma = 1.0 / np.sqrt(w) if uneven else None
-    xmin, xmax = float(x.min()), float(x.max())
-    # bounds: [L1, s1, k0_1, L2, s2, k0_2]
-    lb = [0.0, 1e-3, xmin, 0.0, 1e-3, xmin]
-    ub = [1.0, 5.0, xmax, 1.0, 5.0, xmax]
-    rng = np.random.default_rng(0)
-    best = None
-    for i in range(n_starts):
-        frac = 0.3 + 0.4 * (i / max(n_starts - 1, 1))
-        p0 = [0.5, 0.2, xmin + frac * (xmax - xmin) * 0.5,
-              0.4, 0.1, xmin + (0.4 + 0.5 * frac) * (xmax - xmin)]
-        if i:  # jitter subsequent starts
-            p0 = [np.clip(v * (1 + 0.3 * rng.standard_normal()), lo, hi)
-                  for v, lo, hi in zip(p0, lb, ub)]
-        try:
-            popt, pcov = curve_fit(double_sigmoid, x, y, p0=p0, bounds=(lb, ub), maxfev=20000, sigma=sigma)
-        except Exception:
-            continue
-        resid = y - double_sigmoid(x, *popt)
-        rss = float(np.sum(w * resid ** 2))
-        if best is None or rss < best[0]:
-            best = (rss, popt, pcov)
-    if best is None:
-        return {"error": "fit failed", "model": "double_sigmoid"}
-
-    _, popt, pcov = best
-    L1, s1, k0_1, L2, s2, k0_2 = popt
-    # identifiability: order components by k0 (component 2 = later/larger)
-    if k0_1 > k0_2:
-        L1, s1, k0_1, L2, s2, k0_2 = L2, s2, k0_2, L1, s1, k0_1
-    yhat = double_sigmoid(x, L1, s1, k0_1, L2, s2, k0_2)
-    resid = y - yhat
-    se = np.sqrt(np.diag(pcov)) if pcov is not None and np.all(np.isfinite(pcov)) else [np.nan] * 6
-    asymptote = float(L1 + L2)
-    return {
-        "model": "double_sigmoid",
-        "L1": float(L1), "s1": float(s1), "k0_1": float(k0_1),
-        "L2": float(L2), "s2": float(s2), "k0_2": float(k0_2),
-        "L1_SE": float(se[0]), "L2_SE": float(se[3]),
-        "asymptote": asymptote,
-        "L2_fraction": float(L2 / asymptote) if asymptote > 0 else np.nan,
-        "r_squared": _r_squared(y, yhat),
-        "rmse": float(np.sqrt(np.mean(resid ** 2))),
-        "aicc": _aicc(resid, 6, len(x)),
-        "n_points": int(len(x)),
-        "weighted": bool(uneven),
-    }
-
-
-def fit_single_sigmoid(x: np.ndarray, y: np.ndarray) -> dict:
-    xmin, xmax = float(x.min()), float(x.max())
-    try:
-        popt, pcov = curve_fit(
-            single_sigmoid, x, y,
-            p0=[float(np.max(y)), 0.1, float(np.median(x))],
-            bounds=([0.0, 1e-3, xmin], [1.0, 5.0, xmax]), maxfev=20000)
-    except Exception as e:
-        return {"error": str(e), "model": "single_sigmoid"}
-    yhat = single_sigmoid(x, *popt)
-    resid = y - yhat
-    return {
-        "model": "single_sigmoid",
-        "L": float(popt[0]), "s": float(popt[1]), "k0": float(popt[2]),
-        "asymptote": float(popt[0]), "r_squared": _r_squared(y, yhat),
-        "rmse": float(np.sqrt(np.mean(resid ** 2))), "aicc": _aicc(resid, 3, len(x)),
-        "n_points": int(len(x)),
-    }
 
 
 # ---------------------------------------------------------------------------------------------- kplexity model
@@ -240,9 +154,7 @@ def curve_from_fit(x: np.ndarray, fit: dict) -> np.ndarray:
     m = fit.get("model")
     if m in ("kplexity", "kplexity_gamma"):
         return kplexity_curve(x, fit["b"], fit["k0"], fit["A"], fit["S"], fit["lam"], fit.get("a"))
-    if m == "double_sigmoid":
-        return double_sigmoid(x, *[fit[k] for k in ("L1", "s1", "k0_1", "L2", "s2", "k0_2")])
-    return single_sigmoid(x, fit["L"], fit["s"], fit["k0"])
+    raise ValueError(f"unknown model {m!r}")
 
 
 def genome_bp_from_csv(csv_path: str) -> float | None:
@@ -257,13 +169,9 @@ def genome_bp_from_csv(csv_path: str) -> float | None:
 
 
 def fit_curve(x: np.ndarray, y: np.ndarray, model: str = "kplexity", genome_bp: float | None = None) -> dict:
-    """Dispatch: model in {kplexity, gamma, double, single}."""
+    """Dispatch: model in {kplexity, gamma}."""
     if model == "kplexity":
         return fit_kplexity(x, y, genome_bp)
     if model == "gamma":
         return fit_kplexity(x, y, genome_bp, gamma=True)
-    if model == "double":
-        return fit_double_sigmoid(x, y)
-    if model == "single":
-        return fit_single_sigmoid(x, y)
     raise ValueError(f"unknown model {model!r}")
