@@ -1,7 +1,7 @@
 # kplex — k-plexity CLI
 
 Fraction of unique k-mers vs *k*: a fast genome repeat-landscape QC metric.
-Three commands: **`run`** (FASTA → curve), **`fit`** (curve → double-sigmoid params), **`plot`** (curve → figure).
+Three commands: **`run`** (FASTA → curve), **`fit`** (curve → model parameters), **`plot`** (curve → figure).
 
 ## Install
 
@@ -26,11 +26,11 @@ kplex run genome.fa -o mygenome --chromosomes-only -T 20
 #   -> mygenome.kplex.csv , mygenome.theoretical.csv
 #   add --fit --plot to also fit + render in one go
 
-# 2) fit the double sigmoid
+# 2) fit the curve (default: the kplexity model; --model gamma | double | single)
 kplex fit mygenome.theoretical.csv -o mygenome
-#   -> mygenome.fit.json  (R², asymptote=L1+L2, L2_fraction=L2/(L1+L2), k0_1, k0_2)
+#   -> mygenome.fit.json  (A, identical = 1-A, S, lam, divergence, k0, b, R², RMSE, AICc)
 
-# 3) plot (optionally overlay the fit + component decomposition)
+# 3) plot (optionally overlay the fit: chance collisions x A, near-copy gap, plateau)
 kplex plot mygenome.theoretical.csv --fit mygenome.fit.json -o mygenome.png
 ```
 
@@ -39,7 +39,11 @@ kplex plot mygenome.theoretical.csv --fit mygenome.fit.json -o mygenome.png
 adding `fraction_unique_theoretical`, the length-based denominator, plus a truncation metric).
 `fit`/`plot` prefer `fraction_unique_theoretical` when present.
 
-## Parameters (shape of the curve)
-- **asymptote** = L1 + L2 — the high-k plateau (overall uniqueness)
-- **L2_fraction** = L2/(L1+L2) — relative height of the second component
-- **k0_1, k0_2** — the two midpoints; **s1, s2** — the two steepnesses
+## Parameters
+`y(k) = B(k)·[A − S·e^(−λ(k−k0))]`, `B = (1 − e^(−L))/L`, `L = 2e^(−b(k−k0))`
+- **A** — resolvable fraction (plateau); **identical** = 1 − A, copies no k separates
+- **S** — near-copy share at k0 (k-mers in diverged repeat copies)
+- **lam**, **divergence** = 1 − e^(−lam) — how fast and how diverged those copies are
+- **k0** ≈ log4(genome size), **b** — position and steepness of the first rise (random sequence: b = ln 4)
+- `--model gamma` adds **a** (spread of divergence across copies); `--model double` gives the double
+  sigmoid of earlier versions (L1, s1, k0_1, L2, s2, k0_2, asymptote, L2_fraction)

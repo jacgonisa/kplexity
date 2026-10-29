@@ -12,8 +12,10 @@
 <header>
   <h1>k-plexity explorer</h1>
   <p class="lede">Upload a k-plexity curve, the fraction of unique <i>k</i>-mers in an assembly as a function of
-    <i>k</i>, to fit the double-sigmoid model and compare your genome with Darwin Tree of Life
-    assemblies. Everything runs in your browser; nothing is uploaded.</p>
+    <i>k</i>, to fit the kplexity model and compare your genome with Darwin Tree of Life
+    assemblies. The model separates chance collisions of short <i>k</i>-mers, near copies (repeats whose copies
+    differ, which become unique as <i>k</i> grows) and identical copies (never resolved). Everything runs in your
+    browser; nothing is uploaded.</p>
   <p class="links"><a href="https://github.com/jacgonisa/kplexity">GitHub &amp; command-line tool</a> ·
     curves come from <code>kplex run genome.fa</code></p>
   <div class="theme" role="group" aria-label="Colour theme">
@@ -62,6 +64,13 @@
 
   <section class="panel compare" aria-labelledby="h-compare">
     <h2 id="h-compare">2 · Compare with</h2>
+    <div class="row">
+      <label for="model-view">Model</label>
+      <select id="model-view">
+        <option value="kplexity" selected>kplexity model (A, S, divergence, k0, b)</option>
+        <option value="double">double sigmoid (earlier versions)</option>
+      </select>
+    </div>
     <p class="muted small">Pick the background(s) to superimpose your curve on.</p>
     <div id="clade-toggles" class="toggles"></div>
     <div class="row">
@@ -85,7 +94,7 @@
       <button id="btn-species" type="button" class="secondary">Add</button>
     </div>
     <div id="species-chips" class="chips"></div>
-    <label class="check"><input type="checkbox" id="show-components" checked> show the two sigmoid components, L1, L2 and the asymptote</label>
+    <label class="check"><input type="checkbox" id="show-components" checked> <span id="components-label">show the chance-collision curve B·A, the near-copy gap and A</span></label>
   </section>
 
   <section class="panel plot-panel">
@@ -112,83 +121,117 @@
 <main id="tab-parameters" class="params" role="tabpanel" hidden>
   <section class="panel guide" aria-labelledby="h-guide">
     <h2 id="h-guide">Reading the parameters</h2>
-    <p class="small">What each double-sigmoid parameter does and does not tell you about a genome.
+    <p class="small">What each kplexity-model parameter does and does not tell you about a genome.
       <a href="#explore" data-tab="explore">Back to the explorer</a></p>
+    <p class="model-eq">y(<i>k</i>) = B(<i>k</i>) · [A − S · e<sup>−λ(<i>k</i> − k0)</sup>],
+      &nbsp; B(<i>k</i>) = (1 − e<sup>−L</sup>) / L, &nbsp; L = 2 e<sup>−b(<i>k</i> − k0)</sup></p>
+    <p class="small">B(<i>k</i>) is the chance-collision term: short <i>k</i>-mers recur by chance, and with
+      b = ln 4 and k0 = log<sub>4</sub>(genome size) B is the exact curve of random sequence. The bracket is what is
+      left once chance collisions are gone: the plateau A, minus the near copies still shared, a share S at k0 that
+      decays as <i>k</i> grows because a longer <i>k</i>-mer is more likely to span a difference between copies. In the
+      explorer, the dashed curve is B·A and the shaded band between it and the fit is the near-copy term.</p>
     <p class="muted small">Each reading below comes with the evidence behind it: the 323 reference genomes
       (repeat content from EDTA for transposable elements and TRASH for satellites) and simulated 500-kb genomes
       where the repeat content is known. Open a panel to see the plot. Once you load a curve, your value is
       drawn as a black line.</p>
     <dl>
-      <dt>k0_1 · first transition</dt>
-      <dd>The <i>k</i> at which most of the genome becomes unique. In random sequence this happens at
-        <i>k</i> ≈ log<sub>4</sub>(genome size). Across the reference genomes k0_1 tracks log<sub>4</sub>(genome size)
-        closely (r = <span data-stat="r_k01"></span>), about one <i>k</i> above it (median
-        +<span data-stat="off_k01"></span>).
-        <details data-plot="k0_1"><summary>Show the evidence</summary><div class="ev-plot"></div>
-          <p class="ev-cap">Each dot is a reference genome. Dashed line: k0_1 = log<sub>4</sub>(genome size), the
-            random-sequence expectation (a simulated random 500-kb sequence rises at <i>k</i> =
-            <span data-stat="rand_k0"></span>; log<sub>4</sub> = 9.5). Your genome appears here only if the file
-            has <code>total_kmers</code>, which gives its size.</p></details></dd>
+      <dt>k0 · first-rise position</dt>
+      <dd>The <i>k</i> at which chance collisions stop and most of the genome becomes unique. In random sequence this
+        is log<sub>4</sub>(genome size). Across the reference genomes k0 tracks log<sub>4</sub>(genome size) closely
+        (r = <span data-stat="r_k0"></span>; median k0 − log<sub>4</sub>G = <span data-stat="off_k0"></span>). It is
+        an internal control: a k0 far from log<sub>4</sub>(genome size) points to a problem with the curve or with
+        the genome size.
+        <details data-plot="k0"><summary>Show the evidence</summary><div class="ev-plot"></div>
+          <p class="ev-cap">Each dot is a reference genome. Dashed line: k0 = log<sub>4</sub>(genome size). A
+            simulated random 500-kb sequence gives k0 = <span data-stat="rand_k0"></span> (log<sub>4</sub> =
+            <span data-stat="sim_log4G"></span>). Your genome appears here only if the file has
+            <code>total_kmers</code>, which gives its size.</p></details></dd>
 
-      <dt>L2 · second component</dt>
-      <dd>The share of <i>k</i>-mers that become unique only at the second, later transition: sequence in several
-        copies that are similar but not identical (intermediate copy identity, e.g. young transposable elements,
-        partly homogenised arrays). Across the reference genomes L2 tracks transposable-element content
-        (r = <span data-stat="r_te_L2"></span>), not satellite content (r = <span data-stat="r_sat_L2"></span>).
-        It is <b>not</b> total repeat content: in simulation, copies that differ by 15% or more become unique together
-        with the rest of the genome and add little to L2. If the curve has no clear second transition (k0_2 close to
-        k0_1), the split between L1 and L2 has no meaning.
-        <details data-plot="L2"><summary>Show the evidence</summary><div class="ev-plot"></div>
-          <p class="ev-cap">Left: L2 against transposable-element content in the reference genomes. Right:
-            simulated genomes, each with 30% of its sequence in 5-kb repeat copies, differing only in how far the
-            copies have diverged. The repeat amount is constant, but L2 falls as the copies diverge. At 1%, some copies are
-            still not unique at <i>k</i> = 151 and count against the asymptote instead. Open circle: the second
-            transition has merged with the first (k0_2 within 2 of k0_1), so L2 there means nothing.</p></details></dd>
+      <dt>b · steepness of the first rise</dt>
+      <dd>Random sequence gives b = ln 4 = 1.386 (simulation: <span data-stat="rand_b"></span>; every simulated
+        genome lies in <span data-stat="sim_b"></span>). Real genomes rise more gradually (median b =
+        <span data-stat="med_b"></span>), more so the larger the genome (r = <span data-stat="r_G_b"></span> with
+        log<sub>4</sub> genome size) and the more transposable elements it carries (r =
+        <span data-stat="r_te_b"></span>). Read b as describing the shape of the first rise; it is not tied to a
+        particular repeat type.
+        <details data-plot="b"><summary>Show the evidence</summary><div class="ev-plot"></div>
+          <p class="ev-cap">Left: b in the reference genomes against log<sub>4</sub>(genome size). Right: b in all the
+            simulated genomes (random sequence plus transposons, diverging copies and tandem arrays), against their
+            repeat share. Dashed line: ln 4.</p></details></dd>
 
-      <dt>k0_2 · second transition</dt>
-      <dd>The <i>k</i> at which those similar copies become distinguishable: a <i>k</i>-mer must be long enough to
-        include a difference between copies. In simulation k0_2 falls as copies diverge
-        (<span data-stat="aging_k02"></span>), so less-diverged, typically younger, copies give a larger k0_2.
-        In a real genome k0_2 averages over many repeat families of different ages. It has not yet been tested
-        against an independent measure of repeat age. Across the reference genomes it is unrelated to
-        transposable-element content (r = <span data-stat="r_te_k02"></span>) and to genome size
-        (r = <span data-stat="r_G_k02"></span>).
-        <details data-plot="k0_2"><summary>Show the evidence</summary><div class="ev-plot"></div>
-          <p class="ev-cap">Left: the simulated genomes above, k0_2 against divergence between copies. Right: k0_2 in
-            the reference genomes, by clade. Open circle: second transition merged with the first.</p></details></dd>
+      <dt>S · near-copy share at k0</dt>
+      <dd>The share of <i>k</i>-mers that are still shared between repeat copies at k0 but become unique at larger
+        <i>k</i>, because the copies differ. Across the <span data-stat="n_te"></span> reference genomes S tracks the
+        share of the genome annotated as transposable elements (r = <span data-stat="r_te_S"></span>; S ≈
+        <span data-stat="slope_te_S"></span> × TE share, fitted through the origin). Genomes rich in satellites and
+        genomes with many duplicated genes sit above the line (r = <span data-stat="r_sat_S"></span> between satellite
+        content and the distance above the line), since their near copies are not transposable elements. S is not
+        total repeat content: copies that differ a lot are already unique at k0 and add little to S. In simulation, with
+        30% of the genome in repeat copies, S is <span data-stat="ag_S"></span> divergence between copies.
+        <details data-plot="S"><summary>Show the evidence</summary><div class="ev-plot"></div>
+          <p class="ev-cap">Left: S against transposable-element content in the reference genomes; dashed line, the
+            fit through the origin. Right: simulated genomes with known repeat share. Transposons at 15% divergence
+            (3-kb copies, filled; other copy lengths, open diamonds) give S well below their share. With 30% in
+            5-kb copies (open squares, divergence 0–40%), S is close to the share when copies have barely diverged and
+            near zero when they differ by 30% or more. Dashed line: equality.</p></details></dd>
 
-      <dt>asymptote = L1 + L2</dt>
-      <dd>Fraction unique at the longest <i>k</i>. The rest, 1 − asymptote, is sequence in copies so similar that
-        <i>k</i> = 151 still cannot tell them apart. In simulation, 1 − asymptote equals the share of the genome in
-        perfect tandem arrays. In real genomes it correlates only moderately with satellite content
-        (r = <span data-stat="r_sat_na"></span>) and with transposable-element content
-        (r = <span data-stat="r_te_na"></span>). It reflects the most homogeneous copies rather than the total amount
-        of repeats: in the human genome, rDNA and α-satellite higher-order arrays never become unique, while other
-        satellite arrays do. It can only count copies that are present in the assembly.
-        <details data-plot="asym"><summary>Show the evidence</summary><div class="ev-plot"></div>
-          <p class="ev-cap">Left: simulated genomes with 2–50% of their sequence in perfect tandem arrays; the
-            dashed line is equality. Right: 1 − asymptote against satellite content in the reference genomes.</p></details></dd>
+      <dt>A and 1 − A · identical copies</dt>
+      <dd>A is the plateau: the fraction of <i>k</i>-mers that some <i>k</i> resolves. The rest, 1 − A, is in copies so
+        similar that no <i>k</i> up to the last one separates them. In simulation, 1 − A equals the share of the genome
+        in perfect tandem arrays (<span data-stat="td_range"></span>, largest difference
+        <span data-stat="td_err"></span>). In the reference genomes (median 1 − A = <span data-stat="med_id"></span>) it
+        correlates with satellite content (r = <span data-stat="r_sat_id"></span>) and more weakly with
+        transposable-element content (r = <span data-stat="r_te_id"></span>). It reflects the most homogeneous copies
+        (e.g. rDNA, homogenised satellite arrays) rather than the total amount of repeats, and it can only count copies
+        present in the assembly. When the curve has not levelled off by its last <i>k</i>, A is an extrapolation and
+        the explorer says so.
+        <details data-plot="identical"><summary>Show the evidence</summary><div class="ev-plot"></div>
+          <p class="ev-cap">Left: simulated genomes with 2–50% of their sequence in perfect tandem arrays of
+            300-bp units (filled), and 30% with other unit lengths (open); dashed line, equality. Very short units
+            (50–100 bp) give a lower 1 − A than their share. Right: 1 − A against
+            satellite content in the reference genomes.</p></details></dd>
 
-      <dt>s1, s2 · steepness</dt>
-      <dd>How sharp each transition is. In random sequence the rise is steep (slope ≈
-        <span data-stat="rand_s"></span> in simulation). Real genomes are shallower (median s1 =
-        <span data-stat="med_s1"></span>), more so in larger, transposon-rich genomes (r = <span data-stat="r_te_s1"></span>
-        with transposable-element content). In simulation s2 rises with divergence between copies
-        (<span data-stat="aging_s2"></span>). In real genomes s2 shows no simple relation with transposable-element
-        content (r = <span data-stat="r_te_s2"></span>). Read s1 and s2 as describing the shape of the curve, not as
-        measures of a particular repeat type.
-        <details data-plot="s"><summary>Show the evidence</summary><div class="ev-plot"></div>
-          <p class="ev-cap">Left: s1 against transposable-element content in the reference genomes; the dashed line
-            is the slope of a random sequence. Right: s2 against divergence between copies in the simulated
-            genomes (open circle: second transition merged with the first).</p></details></dd>
+      <dt>divergence · between near copies</dt>
+      <dd>How different the near copies are: divergence = 1 − e<sup>−λ</sup>, where λ is the rate at which the
+        near-copy share decays with <i>k</i>. A <i>k</i>-mer in a copy becomes unique once it spans a difference,
+        with probability 1 − (1 − divergence)<sup><i>k</i></sup>. In simulation the fitted divergence follows the true
+        one when copies are similar (<span data-stat="ag_div"></span> true divergence) and runs above it for more
+        diverged copies (<span data-stat="ag_div_hi"></span>). In the
+        reference genomes it is mostly 1–5% (median <span data-stat="med_div"></span>%, 5th–95th percentile
+        <span data-stat="p05_div"></span>–<span data-stat="p95_div"></span>%). A real genome mixes repeat families of
+        different ages, so read it as the divergence of the near copies that dominate S, not of all repeats.
+        <details data-plot="divergence"><summary>Show the evidence</summary><div class="ev-plot"></div>
+          <p class="ev-cap">Left: simulated genomes with 30% of their sequence in 5-kb copies diverged by 0–40%
+            (filled) and transposon sets at 15% divergence (open); dashed line, equality. Right: divergence in the
+            reference genomes, by clade.</p></details></dd>
     </dl>
+
+    <details class="legacy">
+      <summary>The double sigmoid (earlier versions)</summary>
+      <p class="small">Earlier versions of the tool fitted
+        y = L1/(1 + e<sup>−s1(<i>k</i> − k0_1)</sup>) + L2/(1 + e<sup>−s2(<i>k</i> − k0_2)</sup>). It is still
+        available in the explorer (Model: double sigmoid), and the reference genomes carry both fits.</p>
+      <ul class="small">
+        <li><b>k0_1</b>: first transition, about log<sub>4</sub>(genome size); corresponds to k0.</li>
+        <li><b>s1</b>: steepness of the first transition; corresponds to b.</li>
+        <li><b>L2</b>: share of <i>k</i>-mers that become unique only at a second, later transition; tracks
+          transposable-element content, like S.</li>
+        <li><b>k0_2</b>, <b>s2</b>: position and steepness of the second transition; in simulation k0_2 falls as copies
+          diverge. They describe the shape of the curve rather than a measured quantity.</li>
+        <li><b>L1</b>: share that becomes unique at the first transition.</li>
+        <li><b>asymptote = L1 + L2</b>: fraction unique at the longest <i>k</i>; 1 − asymptote corresponds to 1 − A.</li>
+      </ul>
+      <p class="small">A curve was called double when the uniqueness gained after <i>k</i> = 25 was at least 0.05 and
+        k0_2/k0_1 ≥ 2, single when neither held; with no distinct second transition L2, s2 and k0_2 have no meaning.
+        The kplexity model has no such case: S simply goes to zero.</p>
+    </details>
   </section>
 </main>
 
 <footer>
   <p>Background: <span id="ref-n"></span> chromosome-level Darwin Tree of Life genomes with repeat annotation
     (the genome set analysed in the paper; its three protists are not shown), exact <i>k</i>-mer totals (N-free),
-    fitted with the same double-sigmoid model. A few curves stop between <i>k</i> = 142 and 150.</p>
+    fitted with the same kplexity model (and, for the double-sigmoid view, the double sigmoid). A few curves stop between <i>k</i> = 142 and 150.</p>
 </footer>
 
 <script type="module" src="app.js"></script>

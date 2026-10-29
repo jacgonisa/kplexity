@@ -4,12 +4,13 @@
 
 For each *k*, `kplex` counts the distinct *k*-mers in the assembly (`U`) and the total number of
 *k*-mers (`T`); the curve is `U/T` over *k* = 5–151. It uses the assembly only — no reads, no
-annotation — and is summarised by a double-sigmoid fit (six parameters).
+annotation — and is summarised by a fit with five interpretable parameters: how much of the assembly can
+ever become unique, how much sits in diverged repeat copies, and how diverged those copies are.
 
 ![k-plexity — how it works](animation/kplex_story.gif)
 
-Bacteria are well described by a single sigmoid; eukaryotes, with their repeat content, need the
-second component — the double sigmoid:
+Bacteria rise once, at the length where random collisions stop; eukaryotes, with their repeat content, keep
+rising as *k* grows long enough to tell diverged repeat copies apart:
 
 ![example curves: bacterium, plant, invertebrate, vertebrate](assets/kplexity_examples.png)
 
@@ -54,22 +55,45 @@ Handy flags: `-k 5:151:1` (k range), `-T` (threads), `--chromosomes-only`
 
 ---
 
-## The double-sigmoid fit
+## The fit
 
 ```
-y(k) = L1 / (1 + e^(−s1·(k − k0_1)))  +  L2 / (1 + e^(−s2·(k − k0_2)))
+y(k) = B(k) · [A − S · e^(−λ(k − k0))]        B(k) = (1 − e^(−L)) / L,   L = 2·e^(−b(k − k0))
 ```
 
-Two sigmoids add up to the curve. The six parameters are just its shape:
+Three things make a *k*-mer non-unique, and each has a term:
 
-| parameter | what it is |
-|---|---|
-| `L1`, `L2` | heights of the two components (their sum `L1 + L2` is the plateau) |
-| `k0_1`, `k0_2` | the two midpoints — where each component rises |
-| `s1`, `s2` | how steeply each one rises |
-| **asymptote** = `L1 + L2` | the high-*k* plateau (overall uniqueness) |
+1. **Chance collisions.** `B(k)` is the exact curve of a random sequence when `b = ln 4` and `k0 = log₄(G)`:
+   short *k*-mers recur by chance; past `k0` they stop.
+2. **Diverged repeat copies.** A *k*-mer in a copy that differs from the others at a fraction `δ` of sites is
+   shared until it spans a difference, with probability `(1 − δ)^k`. Summed over copies this gives the
+   near-copy gap `S · e^(−λ(k − k0))`, which closes as *k* grows.
+3. **Identical copies.** Copies that no *k* ≤ 151 can separate (homogeneous tandem arrays, rDNA, recent
+   duplications) keep the curve below one: the plateau `A`.
 
-`kplex fit` writes these to a `.fit.json` and reports `R²`, `RMSE` and `AICc`.
+| parameter | name | what it is |
+|---|---|---|
+| `A` | resolvable fraction | the plateau; `1 − A` is the **identical-copy fraction** |
+| `S` | near-copy share | share of *k*-mers at `k0` that sit in diverged repeat copies (tracks transposable-element content) |
+| `λ` | decay rate | how fast those copies resolve; **divergence** between copies = `1 − e^(−λ)` |
+| `k0` | first-rise position | ≈ log₄(genome size), an internal check on every fit |
+| `b` | first-rise steepness | `ln 4` ≈ 1.39 for random sequence |
+
+```bash
+kplex fit curve.csv                   # the model above (default)
+kplex fit curve.csv --model gamma     # + one parameter a: divergence varies across copies
+kplex fit curve.csv --model double    # double sigmoid (L1, s1, k0_1, L2, s2, k0_2), as in earlier versions
+```
+
+`kplex fit` writes the parameters to a `.fit.json` with `R²`, `RMSE` and `AICc`. It reads the genome size
+from the curve's `total_kmers` column to start `k0` at log₄(G) (or give `--genome-bp`). If the near-copy gap is
+still open at the largest *k* (very homogeneous repeats), `A` is an extrapolation and `kplex fit` says so
+(`"plateau_reached": false`).
+
+**Why the near-copy term.** A model with chance collisions and a plateau only (`B(k) · A`, three parameters)
+leaves a systematic residual of exactly the shape `S · e^(−λk)`; adding the term lowers the error in every
+eukaryotic genome tested, by an amount that grows with `S`, and predicts the curve beyond the fitted range
+better than the double sigmoid.
 
 ---
 
@@ -79,7 +103,7 @@ Two sigmoids add up to the curve. The six parameters are just its shape:
 shows it against 323 chromosome-level Darwin Tree of Life genomes with repeat annotation (median and 50% / 90%
 bands per clade, adjustable opacity; plants, vertebrates, invertebrates, fungi). Example curves are built in (Arabidopsis,
 human, barley, a ladybird, an oyster mushroom and *E. coli*), and the page has a light and a dark theme. Drop in the `.kplex.csv` from `kplex run` (or any `k, fraction`
-table); the fit runs in your browser and nothing is uploaded. You get the six parameters, where each one falls
+table); the fit runs in your browser and nothing is uploaded. You get the fitted parameters, where each one falls
 within each clade, and any of these species overlaid by name. A "Reading the parameters" tab shows, for each parameter,
 the evidence behind its interpretation (reference genomes and simulations). The page does not count *k*-mers itself;
 use `kplex run` for that.

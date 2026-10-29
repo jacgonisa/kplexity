@@ -7,6 +7,8 @@ from pathlib import Path
 
 from . import __version__
 
+MODELS = ["kplexity", "gamma", "double", "single"]
+
 
 def _default_prefix(fasta: str) -> str:
     stem = Path(fasta).name
@@ -29,13 +31,13 @@ def cmd_run(a) -> int:
         print(f"[kplex run] theoretical -> {out['theoretical']}")
     curve_for_next = out.get("theoretical", out["curve"])
     if a.fit or a.plot:
-        from .model import load_curve, fit_double_sigmoid
+        from .model import load_curve, fit_curve, genome_bp_from_csv
         x, y, _ = load_curve(curve_for_next)
-        fit = fit_double_sigmoid(x, y)
+        fit = fit_curve(x, y, a.model, genome_bp_from_csv(curve_for_next))
         fit_json = f"{prefix}.fit.json"
         Path(fit_json).write_text(json.dumps(fit, indent=2))
-        print(f"[kplex run] fit -> {fit_json}  (R²={fit.get('r_squared', float('nan')):.4f}, "
-              f"L2/(L1+L2)={fit.get('L2_fraction', float('nan')):.3f})")
+        print(f"[kplex run] fit -> {fit_json}")
+        _summary("[kplex run]", fit)
         if a.plot:
             from .plotting import plot
             png = plot(curve_for_next, f"{prefix}.png", fit=fit)
@@ -43,20 +45,37 @@ def cmd_run(a) -> int:
     return 0
 
 
+def _summary(tag: str, fit: dict) -> None:
+    if "error" in fit:
+        print(f"{tag} fit FAILED: {fit['error']}", file=sys.stderr)
+        return
+    print(f"  R²={fit['r_squared']:.4f}  RMSE={fit['rmse']:.4f}  AICc={fit.get('aicc', float('nan')):.1f}")
+    if fit["model"].startswith("kplexity"):
+        print(f"  A={fit['A']:.3f} (identical 1-A={fit['identical']:.3f})  S={fit['S']:.3f}  "
+              f"divergence={100 * fit['divergence']:.1f}%  k0={fit['k0']:.1f}  b={fit['b']:.2f}"
+              + (f"  a={fit['a']:.2f}" if "a" in fit else ""))
+        if not fit["plateau_reached"]:
+            print(f"  warning: the near-copy gap is still {fit['gap_at_kmax']:.3f} at the largest k, so A (and 1-A) "
+                  "is an extrapolation; extend k or read y at the largest k instead", file=sys.stderr)
+    elif fit["model"] == "double_sigmoid":
+        print(f"  asymptote(L1+L2)={fit['asymptote']:.3f}  L2/(L1+L2)={fit['L2_fraction']:.3f}  "
+              f"k0_1={fit['k0_1']:.1f}  k0_2={fit['k0_2']:.1f}")
+    else:
+        print(f"  L={fit['L']:.3f}  s={fit['s']:.3f}  k0={fit['k0']:.1f}")
+
+
 def cmd_fit(a) -> int:
-    from .model import load_curve, fit_double_sigmoid, fit_single_sigmoid
+    from .model import load_curve, fit_curve, genome_bp_from_csv
     x, y, ycol = load_curve(a.csv)
-    fit = fit_single_sigmoid(x, y) if a.model == "single" else fit_double_sigmoid(x, y)
+    G = a.genome_bp if a.genome_bp else genome_bp_from_csv(a.csv)
+    fit = fit_curve(x, y, a.model, G)
     prefix = a.out or _default_prefix(a.csv)
     Path(f"{prefix}.fit.json").write_text(json.dumps(fit, indent=2))
     if "error" in fit:
         print(f"[kplex fit] FAILED: {fit['error']}", file=sys.stderr)
         return 1
     print(f"[kplex fit] {fit['model']}  (y={ycol}, n={fit['n_points']})")
-    print(f"  R²={fit['r_squared']:.4f}  RMSE={fit['rmse']:.4f}  AICc={fit.get('aicc', float('nan')):.1f}")
-    if fit["model"] == "double_sigmoid":
-        print(f"  asymptote(L1+L2)={fit['asymptote']:.3f}  L2/(L1+L2)={fit['L2_fraction']:.3f}  "
-              f"k0_1={fit['k0_1']:.1f}  k0_2={fit['k0_2']:.1f}")
+    _summary("[kplex fit]", fit)
     print(f"[kplex fit] -> {prefix}.fit.json")
     if a.plot:
         from .plotting import plot
@@ -91,15 +110,21 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--chromosomes-only", action="store_true", help="keep only chromosome-scale sequences")
     r.add_argument("--chrom-regex", default="", help="regex for chromosome headers")
     r.add_argument("--no-theoretical", action="store_true", help="skip theoretical-fraction CSV")
-    r.add_argument("--fit", action="store_true", help="also fit the double sigmoid")
+    r.add_argument("--fit", action="store_true", help="also fit the curve (see --model)")
+    r.add_argument("--model", choices=MODELS, default="kplexity",
+                   help="kplexity (default, 5 parameters), gamma (6), double (double sigmoid) or single")
     r.add_argument("--plot", action="store_true", help="also render a PNG (implies --fit)")
     r.add_argument("-v", "--verbose", action="store_true")
     r.set_defaults(func=cmd_run)
 
-    f = sub.add_parser("fit", help="fit the double-sigmoid model to a curve CSV")
+    f = sub.add_parser("fit", help="fit a model to a curve CSV (default: the kplexity model)")
     f.add_argument("csv", help="curve CSV from `kplex run` (.kplex.csv or .theoretical.csv)")
     f.add_argument("-o", "--out", help="output prefix (default: CSV name)")
-    f.add_argument("--model", choices=["double", "single"], default="double")
+    f.add_argument("--model", choices=MODELS, default="kplexity",
+                   help="kplexity (default, 5 parameters), gamma (6), double (double sigmoid) or single")
+    f.add_argument("--genome-bp", type=float, default=None,
+                   help="k-mer positions (about the assembly size) to seed k0 at log4(G); "
+                        "default: read from the curve's total_kmers column")
     f.add_argument("--plot", action="store_true", help="also render a PNG with the fit overlaid")
     f.set_defaults(func=cmd_fit)
 

@@ -97,3 +97,7 @@ tr.na td { color: var(--muted); opacity: 0.55; }
 .guide dd { margin: 0; }
 @media (max-width: 600px) { .guide dl { grid-template-columns: 1fr; } .guide dd { margin-bottom: 8px; } }
 footer { color: var(--muted); font-size: 0.85rem; padding-block: 8px 30px; }
+.model.warn { border-left: 3px solid #d08c00; padding-left: 8px; }
+.model-eq { font-size: 0.95rem; margin: 8px 0; overflow-x: auto; }
+details.legacy { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 10px; }
+details.legacy ul { padding-left: 20px; }
