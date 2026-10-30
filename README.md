@@ -106,8 +106,8 @@ still open at the largest *k* (very homogeneous repeats), `A` is an extrapolatio
 (`"plateau_reached": false`).
 
 **Why the near-copy term.** A model with chance collisions and a plateau only (`B(k) · A`, three parameters)
-leaves a systematic residual of exactly the shape `S · e^(−λk)`. Adding the term lowers the error in all 323 DToL
-genomes tested (median 12-fold, by an amount that grows with `S`; lower AICc in every one) and predicts the curve
+leaves a systematic residual that decays with *k*, as expected from diverged copies becoming distinct at longer *k*.
+Adding the term lowers the error in all 326 annotated DToL genomes (median 12-fold, by an amount that grows with `S`; lower AICc in every one) and predicts the curve
 beyond the fitted range better in every one.
 
 ---
