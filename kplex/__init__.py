@@ -5,4 +5,4 @@ Three commands:
   kplex fit   curve CSV -> model parameters (A, S, lam/divergence, k0, b)
   kplex plot  curve CSV (+ optional fit) -> figure
 """
-__version__ = "0.4.0"
+__version__ = "0.4.1"

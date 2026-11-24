@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -32,11 +33,29 @@ def parse_k_range(k_range: str) -> list[int]:
     return list(range(int(a), int(b) + 1, int(c)))
 
 
+# Where the conda package installs Kplex: outside bin/, because on a case-insensitive file system (macOS) the
+# Kplex binary and the kplex command would be the same file.
+CONDA_KPLEX = Path(sys.prefix) / "libexec" / "kplexity" / "Kplex"
+
+
+def _compiled(path) -> bool:
+    """True for a compiled executable; False for a script, such as the kplex entry point that a case-insensitive
+    file system returns when PATH is searched for Kplex."""
+    try:
+        with open(path, "rb") as f:
+            return f.read(2) != b"#!"
+    except OSError:
+        return False
+
+
 def find_counter(tool: str, kplex_bin: str | None, kmc_bin: str | None) -> tuple[str, str]:
     """Resolve which counter to use. Returns (tool, binary_path)."""
     def _resolve_kplex():
-        for cand in (kplex_bin, os.environ.get("KPLEX_BIN"), shutil.which("Kplex")):
+        for cand in (kplex_bin, os.environ.get("KPLEX_BIN")):
             if cand and Path(cand).exists():
+                return str(Path(cand).resolve())
+        for cand in (CONDA_KPLEX, shutil.which("Kplex")):
+            if cand and Path(cand).exists() and _compiled(cand):
                 return str(Path(cand).resolve())
         return None
 
@@ -70,9 +89,9 @@ FASTK_TOOLS = ("FastK", "Histex", "Fastrm")   # what Kplex calls for every k
 
 
 def missing_fastk_tools(kplex_bin: str) -> list[str]:
-    """FastK programs Kplex needs that are neither next to it nor on PATH."""
-    here = Path(kplex_bin).resolve().parent
-    return [t for t in FASTK_TOOLS if not (here / t).exists() and shutil.which(t) is None]
+    """FastK programs Kplex needs that are neither next to it, in this environment's bin, nor on PATH."""
+    dirs = (Path(kplex_bin).resolve().parent, Path(sys.prefix) / "bin")
+    return [t for t in FASTK_TOOLS if not any((d / t).exists() for d in dirs) and shutil.which(t) is None]
 
 
 def prepare_fasta(fasta: Path, workdir: Path) -> Path:
@@ -164,7 +183,8 @@ def _run_fastk(fasta: Path, kplex_bin: str, k_range: str, h_range: str,
         raise SystemExit(f"Kplex needs {', '.join(missing)} (from FASTK) next to it or on PATH; "
                          "`conda install -c bioconda kplexity` installs them.")
     env = os.environ.copy()
-    env["PATH"] = str(Path(kplex_bin).resolve().parent) + os.pathsep + env.get("PATH", "")
+    env["PATH"] = os.pathsep.join([str(Path(kplex_bin).resolve().parent), str(Path(sys.prefix) / "bin"),
+                                   env.get("PATH", "")])
     cmd = [kplex_bin, "-i", str(fasta), "-k", k_range, "-h", h_range,
            "-T", str(threads), "-o", str(workdir / "kplex_tmp"), "-c", str(out_csv)]
     if verbose:

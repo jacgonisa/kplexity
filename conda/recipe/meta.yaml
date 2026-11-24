@@ -1,5 +1,5 @@
 {% set name = "kplexity" %}
-{% set version = "0.4.0" %}
+{% set version = "0.4.1" %}
 {% set fastk_commit = "0ed9428782c94b10b7db3d8bdfcd3d1367b1580a" %}
 
 package:
@@ -45,7 +45,7 @@ test:
   commands:
     - kplex --version
     - kplex --help
-    - Kplex 2>&1 | grep -q "Usage"
+    - 'python -c "from kplex.kmers import CONDA_KPLEX, find_counter; assert find_counter(\"fastk\", None, None)[1] == str(CONDA_KPLEX.resolve())"'
     - kplex schedule --genome-bp 3.1e9
     - 'python -c "import random; r=random.Random(1); a=lambda n: \"\".join(r.choice(\"ACGT\") for _ in range(n)); open(\"/tmp/toy.fa\", \"w\").write(\">toy\\n\" + a(100000) + \"N\" * 300 + a(100000) + \"\\n\")"'
     - kplex run /tmp/toy.fa -o /tmp/toy -k 7,13,21,31 -T 2

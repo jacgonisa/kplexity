@@ -3,15 +3,16 @@
 `recipe/` is the bioconda recipe for the `kplexity` package: the `kplex` Python CLI plus the `Kplex` binary, built
 from `Kplex.c` of the [FASTK fork](https://github.com/jacgonisa/FASTK) pinned to one commit. Only Kplex is
 compiled; `FastK`, `Histex` and `Fastrm`, which Kplex calls for every k, come from bioconda's `fastk` package (the fork
-is FastK 1.2 plus `Kplex.c`, so the two match). Kplex and kplex find them on `PATH`, so a conda install needs no
-`KPLEX_BIN`.
+is FastK 1.2 plus `Kplex.c`, so the two match). Kplex is installed as `$PREFIX/libexec/kplexity/Kplex`, not in
+`bin/`: on a case-insensitive file system (macOS) `bin/Kplex` and the `kplex` entry point are the same file. kplex looks
+there first and finds FastK and Histex in the environment's `bin/`, so a conda install needs no `KPLEX_BIN`.
 
 ## Submitting a release to bioconda
 
-1. Tag and release this repo: `git tag -a v0.4.0 -m "kplexity 0.4.0" && git push origin v0.4.0`, then
-   `gh release create v0.4.0 --title "kplexity 0.4.0" --notes "..."`.
+1. Tag and release this repo: `git tag -a v{VERSION} -m "kplexity {VERSION}" && git push origin v{VERSION}`, then
+   `gh release create v{VERSION} --title "kplexity {VERSION}" --notes "..."`.
 2. Put the release tarball's checksum into `recipe/meta.yaml`:
-   `curl -sL https://github.com/jacgonisa/kplexity/archive/refs/tags/v0.4.0.tar.gz | sha256sum`.
+   `curl -sL https://github.com/jacgonisa/kplexity/archive/refs/tags/v{VERSION}.tar.gz | sha256sum`.
    If the FASTK fork has moved on and Kplex changed, update `fastk_commit` and its `sha256` the same way
    (`https://github.com/jacgonisa/FASTK/archive/<commit>.tar.gz`).
 3. Fork [bioconda/bioconda-recipes](https://github.com/bioconda/bioconda-recipes), copy `recipe/` to
@@ -29,7 +30,7 @@ conda create -p ./cb -c conda-forge conda-build
 ./cb/bin/conda-build recipe -c conda-forge -c bioconda --override-channels --python 3.12
 ```
 
-The recipe tests run `kplex --version`, `kplex --help`, `Kplex`, `kplex schedule` and an end-to-end `kplex run` on a
+The recipe tests run `kplex --version`, `kplex --help`, `kplex schedule`, that kplex finds the conda Kplex, and an end-to-end `kplex run` on a
 200-kb random genome with an N gap, checking the exact N-free `total_kmers`. They are plain shell commands with no
 single quotes, because bioconda's container test installs only the package (no test requirements) and wraps all
 commands in one `bash -c '...'`. `tests/test_run.py` runs the fuller toy-genome test under pytest.

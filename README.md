@@ -25,7 +25,8 @@ conda install -c conda-forge -c bioconda kplexity
 ```
 
 That gives you the **`kplex`** command together with the *k*-mer counter it drives (`Kplex`, plus
-`FastK` and `Histex` from bioconda's `fastk`); nothing else to set up.
+`FastK` and `Histex` from bioconda's `fastk`); nothing else to set up. (`Kplex` is installed as
+`$CONDA_PREFIX/libexec/kplexity/Kplex`, outside `bin/`, because on macOS `Kplex` and `kplex` would be the same file.)
 
 From source:
 
