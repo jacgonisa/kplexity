@@ -51,7 +51,8 @@ def find_counter(tool: str, kplex_bin: str | None, kmc_bin: str | None) -> tuple
         if kp:
             return "fastk", kp
         if tool == "fastk":
-            raise SystemExit("Kplex not found. Pass --kplex /path/to/FASTK/Kplex or set KPLEX_BIN.")
+            raise SystemExit("Kplex not found. Install kplexity with `conda install -c bioconda kplexity`, "
+                             "or pass --kplex /path/to/FASTK/Kplex or set KPLEX_BIN.")
     if tool in ("auto", "kmc"):
         km = _resolve_kmc()
         if km:
@@ -59,9 +60,19 @@ def find_counter(tool: str, kplex_bin: str | None, kmc_bin: str | None) -> tuple
         if tool == "kmc":
             raise SystemExit("kmc not found. Pass --kmc /path/to/kmc or `conda install -c bioconda kmc`.")
     raise SystemExit(
-        "No k-mer counter found. Install FASTK (and pass --kplex .../Kplex or set KPLEX_BIN), "
+        "No k-mer counter found. Install kplexity with `conda install -c bioconda kplexity` (brings Kplex and "
+        "FastK), or build the bundled FASTK and pass --kplex .../Kplex or set KPLEX_BIN, "
         "or install KMC (`conda install -c bioconda kmc`)."
     )
+
+
+FASTK_TOOLS = ("FastK", "Histex", "Fastrm")   # what Kplex calls for every k
+
+
+def missing_fastk_tools(kplex_bin: str) -> list[str]:
+    """FastK programs Kplex needs that are neither next to it nor on PATH."""
+    here = Path(kplex_bin).resolve().parent
+    return [t for t in FASTK_TOOLS if not (here / t).exists() and shutil.which(t) is None]
 
 
 def prepare_fasta(fasta: Path, workdir: Path) -> Path:
@@ -148,6 +159,10 @@ def add_theoretical(curve_csv: Path, out_csv: Path, t_theory: dict[int, int]) ->
 # ----------------------------------------------------------------------------- counters
 def _run_fastk(fasta: Path, kplex_bin: str, k_range: str, h_range: str,
                threads: int, out_csv: Path, workdir: Path, verbose: bool) -> None:
+    missing = missing_fastk_tools(kplex_bin)
+    if missing:
+        raise SystemExit(f"Kplex needs {', '.join(missing)} (from FASTK) next to it or on PATH; "
+                         "`conda install -c bioconda kplexity` installs them.")
     env = os.environ.copy()
     env["PATH"] = str(Path(kplex_bin).resolve().parent) + os.pathsep + env.get("PATH", "")
     cmd = [kplex_bin, "-i", str(fasta), "-k", k_range, "-h", h_range,

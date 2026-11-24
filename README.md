@@ -18,14 +18,24 @@ rising as *k* grows long enough to tell diverged repeat copies apart:
 
 ## Install
 
+With conda, once the bioconda recipe is merged (submitted; until then, install from source below):
+
+```bash
+conda install -c conda-forge -c bioconda kplexity
+```
+
+That gives you the **`kplex`** command together with the *k*-mer counter it drives (`Kplex`, plus
+`FastK` and `Histex` from bioconda's `fastk`); nothing else to set up.
+
+From source:
+
 ```bash
 git clone --recursive https://github.com/jacgonisa/kplexity.git
 cd kplexity
 pip install -e .
 ```
 
-That gives you the **`kplex`** command. The *k*-mer counting is done by a small separate
-binary — build the bundled one once and point `kplex` at it:
+The *k*-mer counting is done by a small separate binary — build the bundled one once and point `kplex` at it:
 
 ```bash
 make -C FASTK          # builds FastK, Histex and Kplex (Kplex calls the other two)
@@ -143,6 +153,7 @@ FASTK/        the k-mer counter  (git submodule → jacgonisa/FASTK; wraps FASTK
 assets/       figures
 animation/    the explainer
 docs/         the browser explorer (GitHub Pages)
+conda/        the bioconda recipe
 ```
 
 **Contact:** Jacob Gonzalez · [github.com/jacgonisa](https://github.com/jacgonisa)
