@@ -24,6 +24,7 @@ build:
 requirements:
   build:
     - {{ compiler('c') }}
+    - {{ stdlib('c') }}
   host:
     - python
     - pip
@@ -57,7 +58,7 @@ about:
   license_file:
     - LICENSE
     - FASTK/LICENSE
-  summary: "k-plexity: the fraction of distinct k-mers in a genome assembly as a function of k, fitted with a five-parameter model of its repeat architecture"
+  summary: "Profile the repeat architecture of a genome assembly from its k-mer uniqueness curve"
   description: |
     kplexity profiles the repeat architecture of a genome from its assembly alone. `kplex run` counts the
     fraction of distinct k-mers for k = 5-151 with FastK (or a sketch of 15 k values), and `kplex fit` fits a model
