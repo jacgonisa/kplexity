@@ -29,5 +29,7 @@ conda create -p ./cb -c conda-forge conda-build
 ./cb/bin/conda-build recipe -c conda-forge -c bioconda --override-channels --python 3.12
 ```
 
-The recipe tests run `kplex --version`, `kplex --help`, `Kplex`, `kplex schedule` and `tests/test_run.py`, an end-to-end
-`kplex run` on a toy genome.
+The recipe tests run `kplex --version`, `kplex --help`, `Kplex`, `kplex schedule` and an end-to-end `kplex run` on a
+200-kb random genome with an N gap, checking the exact N-free `total_kmers`. They are plain shell commands with no
+single quotes, because bioconda's container test installs only the package (no test requirements) and wraps all
+commands in one `bash -c '...'`. `tests/test_run.py` runs the fuller toy-genome test under pytest.
